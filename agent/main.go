@@ -2,18 +2,15 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/instaclustr/supportCenter/agent/collector"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
-	"os"
 )
 
 var (
-	host = flag.String("host", "", "Target hostname")
-	user = flag.String("u", "", "User name")
-	port = flag.Int("p", 22, "Port")
+	user = flag.String("l", "", "User to log in as on the remote machine")
+	port = flag.Int("p", 22, "Port to connect to on the remote csHost")
 )
 
 var log = logrus.New()
@@ -24,53 +21,70 @@ func init() {
 	}
 }
 
-func validateCommandLineArguments() {
-	if *host == "" {
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
-
-	if *user == "" {
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
-}
-
 func main() {
 	log.Info("Instaclustr Agent")
+
+	var scTargets HostList
+	flag.Var(&scTargets, "sc", "Stats collecting hostname")
+
+	var lcTargets HostList
+	flag.Var(&lcTargets, "lc", "Log collecting hostnames")
 
 	flag.Parse()
 	validateCommandLineArguments()
 
-	log.Info("Target host is: ", *host)
+	log.Info("Stats collecting hosts are: ", scTargets.String())
+	log.Info("Log collecting hosts are: ", lcTargets.String())
 
-	done := make(chan bool, 2)
-	go func() {
-		collector.CollectLogs(*host)
-		done <- true
-	}()
+	completed := make(chan bool, len(scTargets.hosts)+len(lcTargets.hosts))
 
-	go func() {
-		collector.CollectStats("asdasd")
-		done <- true
-	}()
+	for _, host := range scTargets.hosts {
+		go func(host string) {
+			agent := &collector.SSHAgent{}
+			agent.SetTarget(host, *port)
+			agent.SetConfig(&ssh.ClientConfig{
+				User: *user,
+				Auth: []ssh.AuthMethod{
+					// TODO ask password or search private key
+					ssh.Password("qweasd!"),
+				},
+				// TODO Ask if we need to check host keys
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			})
 
-	<-done
-	<-done
+			err := collector.CollectStats(agent)
+			if err != nil {
+				log.Error("Failed to collect logs from " + host)
+			}
 
-	agent := &SSHAgent{
-		addr: fmt.Sprintf("%s:%d", *host, *port),
+			completed <- true
+		}(host)
 	}
-	agent.config = &ssh.ClientConfig{
-		User: *user,
-		Auth: []ssh.AuthMethod{
-			ssh.Password("qweasd!"),
-		},
-		// TODO Ask if we need to check host keys
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+
+	for _, host := range lcTargets.hosts {
+		go func(host string) {
+			agent := &collector.SSHAgent{}
+			agent.SetTarget(host, *port)
+			agent.SetConfig(&ssh.ClientConfig{
+				User: *user,
+				Auth: []ssh.AuthMethod{
+					// TODO ask password or search private key
+					ssh.Password("qweasd!"),
+				},
+				// TODO Ask if we need to check host keys
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			})
+
+			err := collector.CollectLogs(agent)
+			if err != nil {
+				log.Error("Failed to collect logs from " + host)
+			}
+
+			completed <- true
+		}(host)
 	}
 
-	Connect(agent)
-
-	ExecuteCommand(agent, "uname -a")
+	for i := 0; i < len(scTargets.hosts)+len(lcTargets.hosts); i++ {
+		<-completed
+	}
 }

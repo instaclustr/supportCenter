@@ -13,11 +13,27 @@ func init() {
 	}
 }
 
-func CollectLogs(host string) {
+func CollectLogs(agent *SSHAgent) error {
 	log := lcLogger.WithFields(logrus.Fields{
-		"prefix": "LC " + host,
+		"prefix": "LC " + agent.addr,
 	})
+	log.Info("Logs collecting started")
 
-	log.Info("Logs collector started")
+	err := agent.Connect()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 
+	sout, serr, err := agent.ExecuteCommand("uname -a")
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	log.Info(sout.String())
+	log.Info(serr.String())
+
+	log.Info("Logs collecting completed")
+	return nil
 }

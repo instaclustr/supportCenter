@@ -13,11 +13,12 @@ func init() {
 	}
 }
 
-func CollectStats(host string) {
+func CollectStats(agent *SSHAgent) error {
 	log := scLogger.WithFields(logrus.Fields{
-		"prefix": "SC " + host,
+		"prefix": "SC " + agent.addr,
 	})
+	log.Info("Stats collecting started")
 
-	log.Info("Stats collector started")
-
+	log.Info("Stats collecting completed")
+	return nil
 }
