@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"golang.org/x/crypto/ssh"
+	"log"
 	"os"
 )
 
@@ -25,8 +27,26 @@ func validateCommandLineArguments() {
 }
 
 func main() {
+	log.Println("Instaclustr Agent +")
+
 	flag.Parse()
 	validateCommandLineArguments()
 
 	fmt.Println("Target host is: ", *host)
+
+	agent := &SSHAgent{
+		addr: fmt.Sprintf("%s:%d", *host, *port),
+	}
+	agent.config = &ssh.ClientConfig{
+		User: *user,
+		Auth: []ssh.AuthMethod{
+			ssh.Password("qweasd!"),
+		},
+		// TODO Ask if we need to check host keys
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	Connect(agent)
+
+	ExecuteCommand(agent, "uname -a")
 }
