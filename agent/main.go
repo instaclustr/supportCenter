@@ -84,6 +84,7 @@ func main() {
 		}(host)
 	}
 
+	// TODO Add timeout maybe
 	for i := 0; i < len(scTargets.hosts)+len(lcTargets.hosts); i++ {
 		<-completed
 	}
