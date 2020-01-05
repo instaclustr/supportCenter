@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/instaclustr/supportCenter/agent/collector"
+	"github.com/sirupsen/logrus"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
-	"log"
 	"os"
 )
 
@@ -13,6 +15,14 @@ var (
 	user = flag.String("u", "", "User name")
 	port = flag.Int("p", 22, "Port")
 )
+
+var log = logrus.New()
+
+func init() {
+	log.Formatter = &prefixed.TextFormatter{
+		FullTimestamp: true,
+	}
+}
 
 func validateCommandLineArguments() {
 	if *host == "" {
@@ -27,12 +37,26 @@ func validateCommandLineArguments() {
 }
 
 func main() {
-	log.Println("Instaclustr Agent +")
+	log.Info("Instaclustr Agent")
 
 	flag.Parse()
 	validateCommandLineArguments()
 
-	fmt.Println("Target host is: ", *host)
+	log.Info("Target host is: ", *host)
+
+	done := make(chan bool, 2)
+	go func() {
+		collector.CollectLogs(*host)
+		done <- true
+	}()
+
+	go func() {
+		collector.CollectStats("asdasd")
+		done <- true
+	}()
+
+	<-done
+	<-done
 
 	agent := &SSHAgent{
 		addr: fmt.Sprintf("%s:%d", *host, *port),

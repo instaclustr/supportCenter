@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"golang.org/x/crypto/ssh"
-	"log"
 )
 
 type SSHAgent struct {
