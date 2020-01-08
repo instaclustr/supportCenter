@@ -8,6 +8,7 @@ import (
 )
 
 type SSHAgent struct {
+	host string
 	addr string
 
 	config *ssh.ClientConfig
@@ -15,6 +16,7 @@ type SSHAgent struct {
 }
 
 func (agent *SSHAgent) SetTarget(host string, port int) {
+	agent.host = host
 	agent.addr = fmt.Sprintf("%s:%d", host, port)
 }
 
@@ -25,7 +27,7 @@ func (agent *SSHAgent) SetConfig(config *ssh.ClientConfig) {
 func (agent *SSHAgent) Connect() error {
 	client, err := ssh.Dial("tcp", agent.addr, agent.config)
 	if err != nil {
-		return errors.New("SSHAgent: Failed to establish connection to remote SSH '" + agent.addr + "'")
+		return errors.New("SSH agent: Failed to establish connection to remote host '" + agent.host + "'")
 	}
 
 	agent.client = client
@@ -36,7 +38,7 @@ func (agent *SSHAgent) Connect() error {
 func (agent *SSHAgent) ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer, error) {
 	session, err := agent.client.NewSession()
 	if err != nil {
-		return nil, nil, errors.New("SSHAgent: Failed to create SSH session to '" + agent.addr + "'")
+		return nil, nil, errors.New("SSH agent: Failed to create SSH session to '" + agent.host + "'")
 	}
 	defer session.Close()
 
@@ -45,7 +47,7 @@ func (agent *SSHAgent) ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer,
 	session.Stderr = &errBuffer
 	err = session.Run(cmd)
 	if err != nil {
-		return nil, nil, errors.New("SSHAgent: Failed to run command '" + cmd + "' csHost: " + agent.addr)
+		return nil, nil, errors.New("SSH agent: Failed to run command '" + cmd + "' on '" + agent.host + "'. " + err.Error())
 	}
 
 	return &outBuffer, &errBuffer, nil

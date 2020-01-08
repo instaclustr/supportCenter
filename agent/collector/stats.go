@@ -20,7 +20,7 @@ func init() {
 
 func CollectStats(agent *SSHAgent) error {
 	log := scLogger.WithFields(logrus.Fields{
-		"prefix": "SC " + agent.addr,
+		"prefix": "SC " + agent.host,
 	})
 	log.Info("Stats collecting started")
 
@@ -43,7 +43,7 @@ func CollectStats(agent *SSHAgent) error {
 	prometheusPath := "/home/serhii/prometheus-2.15.1.linux-amd64"
 	snapshotPath := prometheusPath + "/data/snapshots/" + snapshot
 	// TODO add timestamp
-	destinationPath := "./data/" + agent.addr + "/snapshot"
+	destinationPath := "./data/" + agent.host + "/snapshot"
 
 	log.Info("Downloading snapshot...")
 	err = downloadSnapshot(agent, snapshotPath, destinationPath)

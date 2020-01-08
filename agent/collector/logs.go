@@ -15,7 +15,7 @@ func init() {
 
 func CollectLogs(agent *SSHAgent) error {
 	log := lcLogger.WithFields(logrus.Fields{
-		"prefix": "LC " + agent.addr,
+		"prefix": "LC " + agent.host,
 	})
 	log.Info("Logs collecting started")
 
