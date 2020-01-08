@@ -1,8 +1,8 @@
 package main
 
 import (
+	"agent/collector"
 	"flag"
-	"github.com/instaclustr/supportCenter/agent/collector"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
