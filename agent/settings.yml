@@ -1,0 +1,8 @@
+# Logs collection
+logs:
+
+# Stats collecting
+stats:
+  prometheus:
+    port: 9090
+    data-path: "/data/snapshots/"
