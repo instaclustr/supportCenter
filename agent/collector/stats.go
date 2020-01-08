@@ -3,6 +3,7 @@ package collector
 import (
 	"encoding/json"
 	"errors"
+	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
@@ -29,13 +30,37 @@ func CollectStats(agent *SSHAgent) error {
 		return err
 	}
 
+	log.Info("Creating snapshot...")
 	snapshot, err := createSnapshot(agent)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-
+	log.Info("Creating snapshot  OK")
 	log.Info("Prometheus snapshot name: ", snapshot)
+
+	// TODO move to settings
+	prometheusPath := "/home/serhii/prometheus-2.15.1.linux-amd64"
+	snapshotPath := prometheusPath + "/data/snapshots/" + snapshot
+	// TODO add timestamp
+	destinationPath := "./data/" + agent.addr + "/snapshot"
+
+	log.Info("Downloading snapshot...")
+	err = downloadSnapshot(agent, snapshotPath, destinationPath)
+	if err != nil {
+
+		log.Error(err)
+		return err
+	}
+	log.Info("Downloading snapshot  OK")
+
+	log.Info("Cleanup snapshot...")
+	err = removeSnapshot(agent, snapshotPath)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	log.Info("Cleanup snapshot  OK")
 
 	log.Info("Stats collecting completed")
 	return nil
@@ -69,4 +94,29 @@ func createSnapshot(agent *SSHAgent) (string, error) {
 	}
 
 	return response.Data.Name, nil
+}
+
+func downloadSnapshot(agent *SSHAgent, src string, dest string) error {
+	scpAgent := scp.NewSCP(agent.client)
+	err := scpAgent.ReceiveDir(src, dest, nil)
+
+	if err != nil {
+		return errors.New("Failed to receive snapshot (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
+func removeSnapshot(agent *SSHAgent, path string) error {
+	_, serr, err := agent.ExecuteCommand("rm -rf " + path)
+
+	if err != nil {
+		return errors.New("Failed to remove snapshot (" + err.Error() + ")")
+	}
+
+	if serr.Len() > 0 {
+		return errors.New("Wrong output on creating snapshot: " + serr.String())
+	}
+
+	return nil
 }
