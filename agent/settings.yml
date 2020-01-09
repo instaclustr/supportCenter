@@ -1,5 +1,9 @@
 # Logs collection
 logs:
+  cassandra:
+    config-path: "/etc/cassandra"
+    log-path: "/var/log/cassandra"
+    home-path: "/var/lib/cassandra"
 
 # Stats collecting
 stats:
