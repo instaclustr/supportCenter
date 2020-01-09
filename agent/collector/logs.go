@@ -5,6 +5,16 @@ import (
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
+/*
+Settings
+*/
+type LogsCollectorSettings struct {
+}
+
+func LogsCollectorDefaultSettings() *LogsCollectorSettings {
+	return &LogsCollectorSettings{}
+}
+
 var lcLogger = logrus.New()
 
 func init() {

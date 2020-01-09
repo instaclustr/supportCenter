@@ -8,7 +8,31 @@ import (
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
+/*
+Constants
+*/
 const PrometheusSnapshotSuccess = "success"
+
+/*
+Settings
+*/
+type StatsCollectorSettings struct {
+	Prometheus PrometheusSettings `yaml:"prometheus"`
+}
+
+type PrometheusSettings struct {
+	Port     int16  `yaml:"port"`
+	DataPath string `yaml:"data-path"`
+}
+
+func StatsCollectorDefaultSettings() *StatsCollectorSettings {
+	return &StatsCollectorSettings{
+		Prometheus: PrometheusSettings{
+			Port:     9090,
+			DataPath: "/var/data",
+		},
+	}
+}
 
 var scLogger = logrus.New()
 

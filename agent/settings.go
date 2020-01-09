@@ -1,31 +1,15 @@
 package main
 
 import (
+	"agent/collector"
 	"errors"
 	"gopkg.in/yaml.v3"
 	"os"
 )
 
 type Settings struct {
-	Stats `yaml:"stats"`
-}
-
-type Stats struct {
-	Prometheus `yaml:"prometheus"`
-}
-
-type Prometheus struct {
-	Port     int16  `yaml:"port"`
-	DataPath string `yaml:"data-path"`
-}
-
-func DefaultSettings() *Settings {
-	return &Settings{
-		Stats: Stats{Prometheus{
-			Port:     9090,
-			DataPath: "/var/data",
-		}},
-	}
+	Logs  collector.LogsCollectorSettings  `yaml:"logs"`
+	Stats collector.StatsCollectorSettings `yaml:"stats"`
 }
 
 func (settings *Settings) Load(file string) error {

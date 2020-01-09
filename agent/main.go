@@ -33,12 +33,18 @@ func main() {
 	flag.Parse()
 	validateCommandLineArguments()
 
-	settings := DefaultSettings()
-	err := settings.Load("settings.yml")
-	if err != nil {
-		log.Warn(err)
+	settings := &Settings{
+		Logs:  *collector.LogsCollectorDefaultSettings(),
+		Stats: *collector.StatsCollectorDefaultSettings(),
 	}
-	log.Info(settings.Stats.Prometheus.Port)
+	settingsPath := "settings.yml"
+	exists, _ := Exists(settingsPath)
+	if exists == true {
+		err := settings.Load(settingsPath)
+		if err != nil {
+			log.Warn(err)
+		}
+	}
 
 	log.Info("Stats collecting hosts are: ", scTargets.String())
 	log.Info("Log collecting hosts are: ", lcTargets.String())
