@@ -2,7 +2,6 @@ package collector
 
 import (
 	"github.com/sirupsen/logrus"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 /*
@@ -15,16 +14,16 @@ func LogsCollectorDefaultSettings() *LogsCollectorSettings {
 	return &LogsCollectorSettings{}
 }
 
-var lcLogger = logrus.New()
-
-func init() {
-	lcLogger.Formatter = &prefixed.TextFormatter{
-		FullTimestamp: true,
-	}
+/*
+Collector
+*/
+type LogsCollector struct {
+	Settings *LogsCollectorSettings
+	Log      *logrus.Logger
 }
 
-func CollectLogs(agent *SSHAgent) error {
-	log := lcLogger.WithFields(logrus.Fields{
+func (collector *LogsCollector) Collect(agent *SSHAgent) error {
+	log := collector.Log.WithFields(logrus.Fields{
 		"prefix": "LC " + agent.host,
 	})
 	log.Info("Logs collecting started")

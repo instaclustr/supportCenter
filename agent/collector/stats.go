@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 /*
@@ -34,16 +33,16 @@ func StatsCollectorDefaultSettings() *StatsCollectorSettings {
 	}
 }
 
-var scLogger = logrus.New()
-
-func init() {
-	scLogger.Formatter = &prefixed.TextFormatter{
-		FullTimestamp: true,
-	}
+/*
+Collector
+*/
+type StatsCollector struct {
+	Settings *StatsCollectorSettings
+	Log      *logrus.Logger
 }
 
-func CollectStats(agent *SSHAgent) error {
-	log := scLogger.WithFields(logrus.Fields{
+func (collector *StatsCollector) Collect(agent *SSHAgent) error {
+	log := collector.Log.WithFields(logrus.Fields{
 		"prefix": "SC " + agent.host,
 	})
 	log.Info("Stats collecting started")

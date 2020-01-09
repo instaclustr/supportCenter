@@ -46,6 +46,16 @@ func main() {
 		}
 	}
 
+	statsCollector := collector.StatsCollector{
+		Settings: &settings.Stats,
+		Log:      log,
+	}
+
+	logsCollector := collector.LogsCollector{
+		Settings: &settings.Logs,
+		Log:      log,
+	}
+
 	log.Info("Stats collecting hosts are: ", scTargets.String())
 	log.Info("Log collecting hosts are: ", lcTargets.String())
 
@@ -65,7 +75,7 @@ func main() {
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			})
 
-			err := collector.CollectStats(agent)
+			err := statsCollector.Collect(agent)
 			if err != nil {
 				log.Error("Failed to collect logs from " + host)
 			}
@@ -88,7 +98,7 @@ func main() {
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			})
 
-			err := collector.CollectLogs(agent)
+			err := logsCollector.Collect(agent)
 			if err != nil {
 				log.Error("Failed to collect logs from " + host)
 			}
