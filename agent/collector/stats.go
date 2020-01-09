@@ -3,14 +3,19 @@ package collector
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
+	"path/filepath"
 )
 
 /*
 Constants
 */
-const PrometheusSnapshotSuccess = "success"
+const prometheusSnapshotSuccess = "success"
+const prometheusSnapshotFolder = "snapshots"
+const prometheusCreateSnapshotTemplate = "curl -s -XPOST http://localhost:%d/api/v1/admin/tsdb/snapshot"
+const prometheusRemoveSnapshotTemplate = "rm -rf %s"
 
 /*
 Settings
@@ -54,22 +59,21 @@ func (collector *StatsCollector) Collect(agent *SSHAgent) error {
 	}
 
 	log.Info("Creating snapshot...")
-	snapshot, err := createSnapshot(agent)
+	snapshot, err := collector.createSnapshot(agent)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 	log.Info("Creating snapshot  OK")
-	log.Info("Prometheus snapshot name: ", snapshot)
+	log.Info("Snapshot name: ", snapshot)
 
-	// TODO move to settings
-	prometheusPath := "/home/serhii/prometheus-2.15.1.linux-amd64"
-	snapshotPath := prometheusPath + "/data/snapshots/" + snapshot
+	snapshotPath := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder, snapshot)
+
 	// TODO add timestamp
-	destinationPath := "./data/" + agent.host + "/snapshot"
+	destinationPath := filepath.Join("./data/", agent.host, "/snapshot")
 
 	log.Info("Downloading snapshot...")
-	err = downloadSnapshot(agent, snapshotPath, destinationPath)
+	err = collector.downloadSnapshot(agent, snapshotPath, destinationPath)
 	if err != nil {
 
 		log.Error(err)
@@ -78,7 +82,7 @@ func (collector *StatsCollector) Collect(agent *SSHAgent) error {
 	log.Info("Downloading snapshot  OK")
 
 	log.Info("Cleanup snapshot...")
-	err = removeSnapshot(agent, snapshotPath)
+	err = collector.removeSnapshot(agent, snapshotPath)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -89,9 +93,9 @@ func (collector *StatsCollector) Collect(agent *SSHAgent) error {
 	return nil
 }
 
-func createSnapshot(agent *SSHAgent) (string, error) {
-	// TODO move port to options
-	sout, serr, err := agent.ExecuteCommand("curl -s -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot")
+func (collector *StatsCollector) createSnapshot(agent *SSHAgent) (string, error) {
+	createSnapshotCommand := fmt.Sprintf(prometheusCreateSnapshotTemplate, collector.Settings.Prometheus.Port)
+	sout, serr, err := agent.ExecuteCommand(createSnapshotCommand)
 	if err != nil {
 		return "", err
 	}
@@ -112,14 +116,14 @@ func createSnapshot(agent *SSHAgent) (string, error) {
 		return "", errors.New("Failed to unmarshal snapshot command output (" + err.Error() + ")")
 	}
 
-	if response.Status != PrometheusSnapshotSuccess {
+	if response.Status != prometheusSnapshotSuccess {
 		return "", errors.New("Failed to create prometheus snapshot (status: " + response.Status + ")")
 	}
 
 	return response.Data.Name, nil
 }
 
-func downloadSnapshot(agent *SSHAgent, src string, dest string) error {
+func (collector *StatsCollector) downloadSnapshot(agent *SSHAgent, src string, dest string) error {
 	scpAgent := scp.NewSCP(agent.client)
 	err := scpAgent.ReceiveDir(src, dest, nil)
 
@@ -130,8 +134,8 @@ func downloadSnapshot(agent *SSHAgent, src string, dest string) error {
 	return nil
 }
 
-func removeSnapshot(agent *SSHAgent, path string) error {
-	_, serr, err := agent.ExecuteCommand("rm -rf " + path)
+func (collector *StatsCollector) removeSnapshot(agent *SSHAgent, path string) error {
+	_, serr, err := agent.ExecuteCommand(fmt.Sprintf(prometheusRemoveSnapshotTemplate, path))
 
 	if err != nil {
 		return errors.New("Failed to remove snapshot (" + err.Error() + ")")
