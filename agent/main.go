@@ -40,6 +40,7 @@ func main() {
 	settingsPath := "settings.yml"
 	exists, _ := Exists(settingsPath)
 	if exists == true {
+		log.Info("Loading settings from ", settingsPath, "...")
 		err := settings.Load(settingsPath)
 		if err != nil {
 			log.Warn(err)
