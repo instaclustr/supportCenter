@@ -13,22 +13,12 @@ Constants
 */
 const cassandraGCLogFolderName = "logs"
 
-var configFiles = [...]string{
-	"cassandra.yaml",
-	"cassandra-env.sh",
-	"jvm.options",
-	"logback.xml",
-}
-
-var logFiles = [...]string{
-	"system.log",
-}
-
 /*
 Settings
 */
 type LogsCollectorSettings struct {
-	Cassandra CassandraSettings `yaml:"cassandra"`
+	Cassandra  CassandraSettings  `yaml:"cassandra"`
+	Collecting CollectingSettings `yaml:"collecting"`
 }
 
 type CassandraSettings struct {
@@ -37,12 +27,28 @@ type CassandraSettings struct {
 	HomePath   string `yaml:"home-path"`
 }
 
+type CollectingSettings struct {
+	Configs []string `yaml:"configs"`
+	Logs    []string `yaml:"logs"`
+}
+
 func LogsCollectorDefaultSettings() *LogsCollectorSettings {
 	return &LogsCollectorSettings{
 		Cassandra: CassandraSettings{
 			ConfigPath: "/etc/cassandra",
 			LogPath:    "/var/log/cassandra",
 			HomePath:   "/var/lib/cassandra",
+		},
+		Collecting: CollectingSettings{
+			Configs: []string{
+				"cassandra.yaml",
+				"cassandra-env.sh",
+				"jvm.options",
+				"logback.xml",
+			},
+			Logs: []string{
+				"system.log",
+			},
 		},
 	}
 }
@@ -100,7 +106,7 @@ func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent, log 
 		return errors.New("Failed to create folder for configs (" + dest + ")")
 	}
 
-	for _, name := range configFiles {
+	for _, name := range collector.Settings.Collecting.Configs {
 		src := filepath.Join(collector.Settings.Cassandra.ConfigPath, name)
 		scpAgent := scp.NewSCP(agent.client)
 		err = scpAgent.ReceiveFile(src, dest)
@@ -120,7 +126,7 @@ func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent, log *logrus.En
 		return errors.New("Failed to create folder for logs (" + dest + ")")
 	}
 
-	for _, name := range logFiles {
+	for _, name := range collector.Settings.Collecting.Logs {
 		src := filepath.Join(collector.Settings.Cassandra.LogPath, name)
 		scpAgent := scp.NewSCP(agent.client)
 		err = scpAgent.ReceiveFile(src, dest)

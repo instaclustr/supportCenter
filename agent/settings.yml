@@ -4,6 +4,14 @@ logs:
     config-path: "/etc/cassandra"
     log-path: "/var/log/cassandra"
     home-path: "/var/lib/cassandra"
+  collecting:
+    configs:
+      - "cassandra.yaml"
+      - "cassandra-env.sh"
+      - "jvm.options"
+      - "logback.xml"
+    logs:
+      - "system.log"
 
 # Stats collecting
 stats:
