@@ -3,6 +3,7 @@ package main
 import (
 	"agent/collector"
 	"flag"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
@@ -11,7 +12,7 @@ import (
 )
 
 const timestampPattern = "20060102T150405"
-const collectingFolder = "data"
+const collectingRootFolder = "data"
 
 var (
 	user = flag.String("l", "", "User to log in as on the remote machine")
@@ -53,18 +54,19 @@ func main() {
 	}
 
 	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
+	collectingFolder := filepath.Join(".", collectingRootFolder, collectingTimestamp)
 	log.Info("Collecting timestamp: ", collectingTimestamp)
 
 	metricsCollector := collector.MetricsCollector{
 		Settings: &settings.Metrics,
 		Log:      log,
-		Path:     filepath.Join(".", collectingFolder, collectingTimestamp),
+		Path:     collectingFolder,
 	}
 
 	logsCollector := collector.LogsCollector{
 		Settings: &settings.Logs,
 		Log:      log,
-		Path:     filepath.Join(".", collectingFolder, collectingTimestamp),
+		Path:     collectingFolder,
 	}
 
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
@@ -122,4 +124,15 @@ func main() {
 	for i := 0; i < len(mcTargets.hosts)+len(lcTargets.hosts); i++ {
 		<-completed
 	}
+
+	log.Info("Compressing collected data (", collectingFolder, ")...")
+	tarball := filepath.Join(collectingRootFolder, fmt.Sprint(collectingTimestamp, "-data.zip"))
+	err := Zip(collectingFolder, tarball)
+	if err != nil {
+		log.Error("Failed to compress collected data (", err, ")")
+	} else {
+		log.Info("Compressing collected data  OK")
+	}
+
+	log.Info("Tarball: ", tarball)
 }
