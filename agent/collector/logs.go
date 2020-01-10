@@ -59,6 +59,7 @@ Collector
 type LogsCollector struct {
 	Settings *LogsCollectorSettings
 	Log      *logrus.Logger
+	Path     string
 }
 
 func (collector *LogsCollector) Collect(agent *SSHAgent) error {
@@ -99,8 +100,7 @@ func (collector *LogsCollector) Collect(agent *SSHAgent) error {
 }
 
 func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent, log *logrus.Entry) error {
-	// TODO add timestamp
-	dest := filepath.Join("./data", agent.host, "config")
+	dest := filepath.Join(collector.Path, agent.host, "config")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to create folder for configs (" + dest + ")")
@@ -119,8 +119,7 @@ func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent, log 
 }
 
 func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent, log *logrus.Entry) error {
-	// TODO add timestamp
-	dest := filepath.Join("./data", agent.host, "log")
+	dest := filepath.Join(collector.Path, agent.host, "logs")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to create folder for logs (" + dest + ")")
@@ -139,8 +138,7 @@ func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent, log *logrus.En
 }
 
 func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent, log *logrus.Entry) error {
-	// TODO add timestamp
-	dest := filepath.Join("./data", agent.host, "gc")
+	dest := filepath.Join(collector.Path, agent.host, "gc_logs")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to create folder for logs (" + dest + ")")
@@ -150,6 +148,7 @@ func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent, log *logrus.
 
 	scpAgent := scp.NewSCP(agent.client)
 	err = scpAgent.ReceiveDir(src, dest, func(parentDir string, info os.FileInfo) (b bool, err error) {
+		// TODO generate gc logs
 		log.Info("copy ", parentDir)
 		return true, nil
 	})

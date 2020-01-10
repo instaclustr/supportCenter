@@ -6,7 +6,12 @@ import (
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
+	"path/filepath"
+	"time"
 )
+
+const timestampPattern = "20060102T150405"
+const collectingFolder = "data"
 
 var (
 	user = flag.String("l", "", "User to log in as on the remote machine")
@@ -47,6 +52,9 @@ func main() {
 		}
 	}
 
+	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
+	log.Info("Collecting timestamp: ", collectingTimestamp)
+
 	statsCollector := collector.StatsCollector{
 		Settings: &settings.Stats,
 		Log:      log,
@@ -55,6 +63,7 @@ func main() {
 	logsCollector := collector.LogsCollector{
 		Settings: &settings.Logs,
 		Log:      log,
+		Path:     filepath.Join(".", collectingFolder, collectingTimestamp),
 	}
 
 	log.Info("Stats collecting hosts are: ", scTargets.String())
