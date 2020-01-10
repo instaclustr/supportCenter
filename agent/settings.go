@@ -8,8 +8,8 @@ import (
 )
 
 type Settings struct {
-	Logs  collector.LogsCollectorSettings  `yaml:"logs"`
-	Stats collector.StatsCollectorSettings `yaml:"stats"`
+	Logs    collector.LogsCollectorSettings    `yaml:"logs"`
+	Metrics collector.MetricsCollectorSettings `yaml:"metrics"`
 }
 
 func (settings *Settings) Load(file string) error {

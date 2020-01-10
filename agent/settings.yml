@@ -13,8 +13,8 @@ logs:
     logs:
       - "system.log"
 
-# Stats collecting
-stats:
+# Metrics collecting
+metrics:
   prometheus:
     port: 9090
     data-path: "/data/snapshots/"

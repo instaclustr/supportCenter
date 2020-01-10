@@ -29,8 +29,8 @@ func init() {
 func main() {
 	log.Info("Instaclustr Agent")
 
-	var scTargets HostList
-	flag.Var(&scTargets, "sc", "Stats collecting hostname")
+	var mcTargets HostList
+	flag.Var(&mcTargets, "mc", "Metrics collecting hostname")
 
 	var lcTargets HostList
 	flag.Var(&lcTargets, "lc", "Log collecting hostnames")
@@ -39,8 +39,8 @@ func main() {
 	validateCommandLineArguments()
 
 	settings := &Settings{
-		Logs:  *collector.LogsCollectorDefaultSettings(),
-		Stats: *collector.StatsCollectorDefaultSettings(),
+		Logs:    *collector.LogsCollectorDefaultSettings(),
+		Metrics: *collector.MetricsCollectorDefaultSettings(),
 	}
 	settingsPath := "settings.yml"
 	exists, _ := Exists(settingsPath)
@@ -55,8 +55,8 @@ func main() {
 	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
 	log.Info("Collecting timestamp: ", collectingTimestamp)
 
-	statsCollector := collector.StatsCollector{
-		Settings: &settings.Stats,
+	metricsCollector := collector.MetricsCollector{
+		Settings: &settings.Metrics,
 		Log:      log,
 		Path:     filepath.Join(".", collectingFolder, collectingTimestamp),
 	}
@@ -67,12 +67,12 @@ func main() {
 		Path:     filepath.Join(".", collectingFolder, collectingTimestamp),
 	}
 
-	log.Info("Stats collecting hosts are: ", scTargets.String())
+	log.Info("Metrics collecting hosts are: ", mcTargets.String())
 	log.Info("Log collecting hosts are: ", lcTargets.String())
 
-	completed := make(chan bool, len(scTargets.hosts)+len(lcTargets.hosts))
+	completed := make(chan bool, len(mcTargets.hosts)+len(lcTargets.hosts))
 
-	for _, host := range scTargets.hosts {
+	for _, host := range mcTargets.hosts {
 		go func(host string) {
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
@@ -86,7 +86,7 @@ func main() {
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			})
 
-			err := statsCollector.Collect(agent)
+			err := metricsCollector.Collect(agent)
 			if err != nil {
 				log.Error("Failed to collect logs from " + host)
 			}
@@ -119,7 +119,7 @@ func main() {
 	}
 
 	// TODO Add timeout maybe
-	for i := 0; i < len(scTargets.hosts)+len(lcTargets.hosts); i++ {
+	for i := 0; i < len(mcTargets.hosts)+len(lcTargets.hosts); i++ {
 		<-completed
 	}
 }

@@ -20,7 +20,7 @@ const prometheusRemoveSnapshotTemplate = "rm -rf %s"
 /*
 Settings
 */
-type StatsCollectorSettings struct {
+type MetricsCollectorSettings struct {
 	Prometheus PrometheusSettings `yaml:"prometheus"`
 }
 
@@ -29,8 +29,8 @@ type PrometheusSettings struct {
 	DataPath string `yaml:"data-path"`
 }
 
-func StatsCollectorDefaultSettings() *StatsCollectorSettings {
-	return &StatsCollectorSettings{
+func MetricsCollectorDefaultSettings() *MetricsCollectorSettings {
+	return &MetricsCollectorSettings{
 		Prometheus: PrometheusSettings{
 			Port:     9090,
 			DataPath: "/var/data",
@@ -41,17 +41,17 @@ func StatsCollectorDefaultSettings() *StatsCollectorSettings {
 /*
 Collector
 */
-type StatsCollector struct {
-	Settings *StatsCollectorSettings
+type MetricsCollector struct {
+	Settings *MetricsCollectorSettings
 	Log      *logrus.Logger
 	Path     string
 }
 
-func (collector *StatsCollector) Collect(agent *SSHAgent) error {
+func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 	log := collector.Log.WithFields(logrus.Fields{
-		"prefix": "SC " + agent.host,
+		"prefix": "MC " + agent.host,
 	})
-	log.Info("Stats collecting started")
+	log.Info("Metrics collecting started")
 
 	err := agent.Connect()
 	if err != nil {
@@ -74,9 +74,7 @@ func (collector *StatsCollector) Collect(agent *SSHAgent) error {
 	log.Info("Downloading snapshot...")
 	err = collector.downloadSnapshot(agent, src, dest)
 	if err != nil {
-
 		log.Error(err)
-		return err
 	}
 	log.Info("Downloading snapshot  OK")
 
@@ -88,11 +86,11 @@ func (collector *StatsCollector) Collect(agent *SSHAgent) error {
 	}
 	log.Info("Cleanup snapshot  OK")
 
-	log.Info("Stats collecting completed")
+	log.Info("Metrics collecting completed")
 	return nil
 }
 
-func (collector *StatsCollector) createSnapshot(agent *SSHAgent) (string, error) {
+func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, error) {
 	createSnapshotCommand := fmt.Sprintf(prometheusCreateSnapshotTemplate, collector.Settings.Prometheus.Port)
 	sout, serr, err := agent.ExecuteCommand(createSnapshotCommand)
 	if err != nil {
@@ -122,7 +120,7 @@ func (collector *StatsCollector) createSnapshot(agent *SSHAgent) (string, error)
 	return response.Data.Name, nil
 }
 
-func (collector *StatsCollector) downloadSnapshot(agent *SSHAgent, src string, dest string) error {
+func (collector *MetricsCollector) downloadSnapshot(agent *SSHAgent, src string, dest string) error {
 	scpAgent := scp.NewSCP(agent.client)
 	err := scpAgent.ReceiveDir(src, dest, nil)
 
@@ -133,7 +131,7 @@ func (collector *StatsCollector) downloadSnapshot(agent *SSHAgent, src string, d
 	return nil
 }
 
-func (collector *StatsCollector) removeSnapshot(agent *SSHAgent, path string) error {
+func (collector *MetricsCollector) removeSnapshot(agent *SSHAgent, path string) error {
 	_, serr, err := agent.ExecuteCommand(fmt.Sprintf(prometheusRemoveSnapshotTemplate, path))
 
 	if err != nil {
