@@ -44,6 +44,7 @@ Collector
 type StatsCollector struct {
 	Settings *StatsCollectorSettings
 	Log      *logrus.Logger
+	Path     string
 }
 
 func (collector *StatsCollector) Collect(agent *SSHAgent) error {
@@ -67,13 +68,11 @@ func (collector *StatsCollector) Collect(agent *SSHAgent) error {
 	log.Info("Creating snapshot  OK")
 	log.Info("Snapshot name: ", snapshot)
 
-	snapshotPath := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder, snapshot)
-
-	// TODO add timestamp
-	destinationPath := filepath.Join("./data/", agent.host, "/snapshot")
+	src := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder, snapshot)
+	dest := filepath.Join(collector.Path, agent.host, "/snapshot")
 
 	log.Info("Downloading snapshot...")
-	err = collector.downloadSnapshot(agent, snapshotPath, destinationPath)
+	err = collector.downloadSnapshot(agent, src, dest)
 	if err != nil {
 
 		log.Error(err)
@@ -82,7 +81,7 @@ func (collector *StatsCollector) Collect(agent *SSHAgent) error {
 	log.Info("Downloading snapshot  OK")
 
 	log.Info("Cleanup snapshot...")
-	err = collector.removeSnapshot(agent, snapshotPath)
+	err = collector.removeSnapshot(agent, src)
 	if err != nil {
 		log.Error(err)
 		return err

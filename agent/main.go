@@ -58,6 +58,7 @@ func main() {
 	statsCollector := collector.StatsCollector{
 		Settings: &settings.Stats,
 		Log:      log,
+		Path:     filepath.Join(".", collectingFolder, collectingTimestamp),
 	}
 
 	logsCollector := collector.LogsCollector{
