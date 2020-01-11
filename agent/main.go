@@ -43,6 +43,7 @@ func main() {
 	flag.Parse()
 	validateCommandLineArguments()
 
+	// Settings
 	settings := &Settings{
 		Logs:    *collector.LogsCollectorDefaultSettings(),
 		Metrics: *collector.MetricsCollectorDefaultSettings(),
@@ -57,6 +58,7 @@ func main() {
 		}
 	}
 
+	// SSH Settings
 	hostKeyCallback := ssh.InsecureIgnoreHostKey()
 	if !(*disableKnownHosts) {
 		path := filepath.Join(os.Getenv("HOME"), knownHostsPath)
@@ -69,25 +71,6 @@ func main() {
 		hostKeyCallback = callback
 	}
 
-	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
-	collectingFolder := filepath.Join(".", collectingRootFolder, collectingTimestamp)
-	log.Info("Collecting timestamp: ", collectingTimestamp)
-
-	metricsCollector := collector.MetricsCollector{
-		Settings: &settings.Metrics,
-		Log:      log,
-		Path:     collectingFolder,
-	}
-
-	logsCollector := collector.LogsCollector{
-		Settings: &settings.Logs,
-		Log:      log,
-		Path:     collectingFolder,
-	}
-
-	log.Info("Metrics collecting hosts are: ", mcTargets.String())
-	log.Info("Log collecting hosts are: ", lcTargets.String())
-
 	sshConfig := &ssh.ClientConfig{
 		User: *user,
 		Auth: []ssh.AuthMethod{
@@ -97,6 +80,26 @@ func main() {
 		HostKeyCallback: hostKeyCallback,
 		Timeout:         time.Second * 2,
 	}
+
+	// Collecting
+	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
+	collectingPath := filepath.Join(".", collectingRootFolder, collectingTimestamp)
+	log.Info("Collecting timestamp: ", collectingTimestamp)
+
+	metricsCollector := collector.MetricsCollector{
+		Settings: &settings.Metrics,
+		Log:      log,
+		Path:     collectingPath,
+	}
+
+	logsCollector := collector.LogsCollector{
+		Settings: &settings.Logs,
+		Log:      log,
+		Path:     collectingPath,
+	}
+
+	log.Info("Metrics collecting hosts are: ", mcTargets.String())
+	log.Info("Log collecting hosts are: ", lcTargets.String())
 
 	completed := make(chan bool, len(mcTargets.hosts)+len(lcTargets.hosts))
 
@@ -130,14 +133,16 @@ func main() {
 		}(host)
 	}
 
+	// TODO Check errors
 	// TODO Add timeout maybe
 	for i := 0; i < len(mcTargets.hosts)+len(lcTargets.hosts); i++ {
 		<-completed
 	}
 
-	log.Info("Compressing collected data (", collectingFolder, ")...")
+	// Compressing tarball
+	log.Info("Compressing collected data (", collectingPath, ")...")
 	tarball := filepath.Join(collectingRootFolder, fmt.Sprint(collectingTimestamp, "-data.zip"))
-	err := Zip(collectingFolder, tarball)
+	err := Zip(collectingPath, tarball)
 	if err != nil {
 		log.Error("Failed to compress collected data (", err, ")")
 	} else {
