@@ -27,7 +27,7 @@ func (agent *SSHAgent) SetConfig(config *ssh.ClientConfig) {
 func (agent *SSHAgent) Connect() error {
 	client, err := ssh.Dial("tcp", agent.addr, agent.config)
 	if err != nil {
-		return errors.New("SSH agent: Failed to establish connection to remote host '" + agent.host + "'")
+		return errors.New("SSH agent: Failed to establish connection to remote host '" + agent.host + "' (" + err.Error() + ")")
 	}
 
 	agent.client = client
@@ -47,7 +47,7 @@ func (agent *SSHAgent) ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer,
 	session.Stderr = &errBuffer
 	err = session.Run(cmd)
 	if err != nil {
-		return nil, nil, errors.New("SSH agent: Failed to run command '" + cmd + "' on '" + agent.host + "'. " + err.Error())
+		return nil, nil, errors.New("SSH agent: Failed to run command '" + cmd + "' on '" + agent.host + "'. (" + err.Error() + ")")
 	}
 
 	return &outBuffer, &errBuffer, nil

@@ -7,16 +7,20 @@ import (
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
+	"os"
 	"path/filepath"
 	"time"
 )
 
 const timestampPattern = "20060102T150405"
 const collectingRootFolder = "data"
+const knownHostsPath = "/.ssh/known_hosts"
 
 var (
-	user = flag.String("l", "", "User to log in as on the remote machine")
-	port = flag.Int("p", 22, "Port to connect to on the remote csHost")
+	user              = flag.String("l", "", "User to log in as on the remote machine")
+	port              = flag.Int("p", 22, "Port to connect to on the remote host")
+	disableKnownHosts = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
 )
 
 var log = logrus.New()
@@ -53,6 +57,18 @@ func main() {
 		}
 	}
 
+	hostKeyCallback := ssh.InsecureIgnoreHostKey()
+	if !(*disableKnownHosts) {
+		path := filepath.Join(os.Getenv("HOME"), knownHostsPath)
+		log.Info("Loading known host '", path, "'...")
+		callback, err := knownhosts.New(path)
+		if err != nil {
+			log.Error("Filed to load known hosts (" + err.Error() + ")")
+		}
+
+		hostKeyCallback = callback
+	}
+
 	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
 	collectingFolder := filepath.Join(".", collectingRootFolder, collectingTimestamp)
 	log.Info("Collecting timestamp: ", collectingTimestamp)
@@ -72,21 +88,23 @@ func main() {
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
 	log.Info("Log collecting hosts are: ", lcTargets.String())
 
+	sshConfig := &ssh.ClientConfig{
+		User: *user,
+		Auth: []ssh.AuthMethod{
+			// TODO ask password or search private key
+			ssh.Password("qweasd!"),
+		},
+		HostKeyCallback: hostKeyCallback,
+		Timeout:         time.Second * 2,
+	}
+
 	completed := make(chan bool, len(mcTargets.hosts)+len(lcTargets.hosts))
 
 	for _, host := range mcTargets.hosts {
 		go func(host string) {
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
-			agent.SetConfig(&ssh.ClientConfig{
-				User: *user,
-				Auth: []ssh.AuthMethod{
-					// TODO ask password or search private key
-					ssh.Password("qweasd!"),
-				},
-				// TODO Ask if we need to check host keys
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-			})
+			agent.SetConfig(sshConfig)
 
 			err := metricsCollector.Collect(agent)
 			if err != nil {
@@ -101,15 +119,7 @@ func main() {
 		go func(host string) {
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
-			agent.SetConfig(&ssh.ClientConfig{
-				User: *user,
-				Auth: []ssh.AuthMethod{
-					// TODO ask password or search private key
-					ssh.Password("qweasd!"),
-				},
-				// TODO Ask if we need to check host keys
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-			})
+			agent.SetConfig(sshConfig)
 
 			err := logsCollector.Collect(agent)
 			if err != nil {
