@@ -8,6 +8,7 @@ import (
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,11 +17,16 @@ import (
 const timestampPattern = "20060102T150405"
 const collectingRootFolder = "data"
 const knownHostsPath = "/.ssh/known_hosts"
+const defaultPrivateKeyPath = "/.ssh/id_rsa"
 
 var (
 	user              = flag.String("l", "", "User to log in as on the remote machine")
 	port              = flag.Int("p", 22, "Port to connect to on the remote host")
 	disableKnownHosts = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
+
+	mcTargets   StringList
+	lcTargets   StringList
+	privateKeys StringList
 )
 
 var log = logrus.New()
@@ -31,14 +37,14 @@ func init() {
 	}
 }
 
+func init() {
+	flag.Var(&mcTargets, "mc", "Metrics collecting hostname")
+	flag.Var(&lcTargets, "lc", "Log collecting hostnames")
+	flag.Var(&privateKeys, "pk", "List of files from which the identification keys (private key) for public key authentication are read")
+}
+
 func main() {
 	log.Info("Instaclustr Agent")
-
-	var mcTargets HostList
-	flag.Var(&mcTargets, "mc", "Metrics collecting hostname")
-
-	var lcTargets HostList
-	flag.Var(&lcTargets, "lc", "Log collecting hostnames")
 
 	flag.Parse()
 	validateCommandLineArguments()
@@ -51,7 +57,7 @@ func main() {
 	settingsPath := "settings.yml"
 	exists, _ := Exists(settingsPath)
 	if exists == true {
-		log.Info("Loading settings from ", settingsPath, "...")
+		log.Info("Loading settings from '", settingsPath, "'...")
 		err := settings.Load(settingsPath)
 		if err != nil {
 			log.Warn(err)
@@ -59,23 +65,13 @@ func main() {
 	}
 
 	// SSH Settings
-	hostKeyCallback := ssh.InsecureIgnoreHostKey()
-	if !(*disableKnownHosts) {
-		path := filepath.Join(os.Getenv("HOME"), knownHostsPath)
-		log.Info("Loading known host '", path, "'...")
-		callback, err := knownhosts.New(path)
-		if err != nil {
-			log.Error("Filed to load known hosts (" + err.Error() + ")")
-		}
-
-		hostKeyCallback = callback
-	}
+	hostKeyCallback := loadHostKeys()
+	authSigners := loadAuthKeys()
 
 	sshConfig := &ssh.ClientConfig{
 		User: *user,
 		Auth: []ssh.AuthMethod{
-			// TODO ask password or search private key
-			ssh.Password("qweasd!"),
+			ssh.PublicKeys(authSigners...),
 		},
 		HostKeyCallback: hostKeyCallback,
 		Timeout:         time.Second * 2,
@@ -101,9 +97,9 @@ func main() {
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
 	log.Info("Log collecting hosts are: ", lcTargets.String())
 
-	completed := make(chan bool, len(mcTargets.hosts)+len(lcTargets.hosts))
+	completed := make(chan bool, len(mcTargets.items)+len(lcTargets.items))
 
-	for _, host := range mcTargets.hosts {
+	for _, host := range mcTargets.items {
 		go func(host string) {
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
@@ -118,7 +114,7 @@ func main() {
 		}(host)
 	}
 
-	for _, host := range lcTargets.hosts {
+	for _, host := range lcTargets.items {
 		go func(host string) {
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
@@ -135,7 +131,7 @@ func main() {
 
 	// TODO Check errors
 	// TODO Add timeout maybe
-	for i := 0; i < len(mcTargets.hosts)+len(lcTargets.hosts); i++ {
+	for i := 0; i < len(mcTargets.items)+len(lcTargets.items); i++ {
 		<-completed
 	}
 
@@ -150,4 +146,53 @@ func main() {
 	}
 
 	log.Info("Tarball: ", tarball)
+}
+
+func loadHostKeys() ssh.HostKeyCallback {
+	hostKeyCallback := ssh.InsecureIgnoreHostKey()
+	if !(*disableKnownHosts) {
+		hostsFilePath := filepath.Join(os.Getenv("HOME"), knownHostsPath)
+
+		log.Info("Loading known host '", hostsFilePath, "'...")
+		callback, err := knownhosts.New(hostsFilePath)
+		if err != nil {
+			log.Error("Filed to load known hosts (" + err.Error() + ")")
+			os.Exit(1)
+		}
+
+		hostKeyCallback = callback
+	}
+	return hostKeyCallback
+}
+
+func loadAuthKeys() []ssh.Signer {
+	var signers []ssh.Signer
+
+	keys := []string{
+		filepath.Join(os.Getenv("HOME"), defaultPrivateKeyPath),
+		// TODO Does somebody use DSA?
+		//filepath.Join(os.Getenv("HOME"), "/.ssh/id_dsa"),
+	}
+
+	keys = append(keys, privateKeys.items...)
+
+	for _, keyPath := range keys {
+		log.Info("Loading private key '", keyPath, "'...")
+
+		key, err := ioutil.ReadFile(keyPath)
+		if err != nil {
+			log.Warn("Failed to read key '" + keyPath + "' (" + err.Error() + ")")
+			continue
+		}
+
+		signer, err := ssh.ParsePrivateKey(key)
+		if err != nil {
+			log.Error("Failed to parse private key '" + keyPath + "' (" + err.Error() + ")")
+			continue
+		}
+
+		signers = append(signers, signer)
+	}
+
+	return signers
 }

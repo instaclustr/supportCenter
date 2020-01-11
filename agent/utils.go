@@ -7,18 +7,18 @@ import (
 	"strings"
 )
 
-type HostList struct {
-	hosts []string
+type StringList struct {
+	items []string
 }
 
-func (arr *HostList) String() string {
-	return fmt.Sprint(arr.hosts)
+func (arr *StringList) String() string {
+	return fmt.Sprint(arr.items)
 }
 
-func (arr *HostList) Set(value string) error {
+func (arr *StringList) Set(value string) error {
 	hosts := strings.Split(value, ",")
 	for _, item := range hosts {
-		arr.hosts = append(arr.hosts, item)
+		arr.items = append(arr.items, item)
 	}
 	return nil
 }
