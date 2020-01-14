@@ -25,7 +25,7 @@ var (
 	disableKnownHosts = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
 
 	mcTargets   StringList
-	lcTargets   StringList
+	ncTargets   StringList
 	privateKeys StringList
 )
 
@@ -39,7 +39,7 @@ func init() {
 
 func init() {
 	flag.Var(&mcTargets, "mc", "Metrics collecting hostname")
-	flag.Var(&lcTargets, "lc", "Log collecting hostnames")
+	flag.Var(&ncTargets, "nc", "Node collecting hostnames")
 	flag.Var(&privateKeys, "pk", "List of files from which the identification keys (private key) for public key authentication are read")
 }
 
@@ -51,7 +51,7 @@ func main() {
 
 	// Settings
 	settings := &Settings{
-		Logs:    *collector.LogsCollectorDefaultSettings(),
+		Node:    *collector.NodeCollectorDefaultSettings(),
 		Metrics: *collector.MetricsCollectorDefaultSettings(),
 	}
 	settingsPath := "settings.yml"
@@ -88,16 +88,16 @@ func main() {
 		Path:     collectingPath,
 	}
 
-	logsCollector := collector.LogsCollector{
-		Settings: &settings.Logs,
+	nodesCollector := collector.NodeCollector{
+		Settings: &settings.Node,
 		Logger:   log,
 		Path:     collectingPath,
 	}
 
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
-	log.Info("Log collecting hosts are: ", lcTargets.String())
+	log.Info("Node collecting hosts are: ", ncTargets.String())
 
-	completed := make(chan bool, len(mcTargets.items)+len(lcTargets.items))
+	completed := make(chan bool, len(mcTargets.items)+len(ncTargets.items))
 
 	for _, host := range mcTargets.items {
 		go func(host string) {
@@ -107,22 +107,22 @@ func main() {
 
 			err := metricsCollector.Collect(agent)
 			if err != nil {
-				log.Error("Failed to collect logs from " + host)
+				log.Error("Failed to collect metrics on '" + host + "'")
 			}
 
 			completed <- true
 		}(host)
 	}
 
-	for _, host := range lcTargets.items {
+	for _, host := range ncTargets.items {
 		go func(host string) {
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
 			agent.SetConfig(sshConfig)
 
-			err := logsCollector.Collect(agent)
+			err := nodesCollector.Collect(agent)
 			if err != nil {
-				log.Error("Failed to collect logs from " + host)
+				log.Error("Failed to collect node on '" + host + "'")
 			}
 
 			completed <- true
@@ -131,7 +131,7 @@ func main() {
 
 	// TODO Check errors
 	// TODO Add timeout maybe
-	for i := 0; i < len(mcTargets.items)+len(lcTargets.items); i++ {
+	for i := 0; i < len(mcTargets.items)+len(ncTargets.items); i++ {
 		<-completed
 	}
 

@@ -1,5 +1,5 @@
-# Logs collection
-logs:
+# Node collection
+node:
   cassandra:
     config-path: "/etc/cassandra"
     log-path: "/var/log/cassandra"

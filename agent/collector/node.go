@@ -19,7 +19,7 @@ const perm os.FileMode = 0755
 /*
 Settings
 */
-type LogsCollectorSettings struct {
+type NodeCollectorSettings struct {
 	Cassandra  CassandraSettings  `yaml:"cassandra"`
 	Collecting CollectingSettings `yaml:"collecting"`
 }
@@ -35,8 +35,8 @@ type CollectingSettings struct {
 	Logs    []string `yaml:"logs"`
 }
 
-func LogsCollectorDefaultSettings() *LogsCollectorSettings {
-	return &LogsCollectorSettings{
+func NodeCollectorDefaultSettings() *NodeCollectorSettings {
+	return &NodeCollectorSettings{
 		Cassandra: CassandraSettings{
 			ConfigPath: "/etc/cassandra",
 			LogPath:    "/var/log/cassandra",
@@ -59,15 +59,15 @@ func LogsCollectorDefaultSettings() *LogsCollectorSettings {
 /*
 Collector
 */
-type LogsCollector struct {
-	Settings *LogsCollectorSettings
+type NodeCollector struct {
+	Settings *NodeCollectorSettings
 	Logger   *logrus.Logger
 	Path     string
 
 	log *logrus.Entry
 }
 
-func (collector *LogsCollector) Collect(agent *SSHAgent) error {
+func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 	log := collector.Logger.WithFields(logrus.Fields{
 		"prefix": "LC " + agent.host,
 	})
@@ -120,7 +120,7 @@ func (collector *LogsCollector) Collect(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent) error {
+func (collector *NodeCollector) downloadConfigurationFiles(agent *SSHAgent) error {
 	dest := filepath.Join(collector.Path, agent.host, "config")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
@@ -139,7 +139,7 @@ func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent) erro
 	return nil
 }
 
-func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent) error {
+func (collector *NodeCollector) downloadLogFiles(agent *SSHAgent) error {
 	dest := filepath.Join(collector.Path, agent.host, "logs")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
@@ -158,7 +158,7 @@ func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent) error {
+func (collector *NodeCollector) downloadGCLogFiles(agent *SSHAgent) error {
 	dest := filepath.Join(collector.Path, agent.host, "gc_logs")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
@@ -180,7 +180,7 @@ func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *LogsCollector) collectNodeToolInfo(agent *SSHAgent) error {
+func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 	commands := [...]string{
 		"nodetool info",
 		"nodetool version",
@@ -217,7 +217,7 @@ func (collector *LogsCollector) collectNodeToolInfo(agent *SSHAgent) error {
 }
 
 // TODO Investigate (Process exited with status 124)
-func (collector *LogsCollector) collectIOStats(agent *SSHAgent) error {
+func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
 
 	path := filepath.Join(collector.Path, agent.host, "info")

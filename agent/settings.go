@@ -8,7 +8,7 @@ import (
 )
 
 type Settings struct {
-	Logs    collector.LogsCollectorSettings    `yaml:"logs"`
+	Node    collector.NodeCollectorSettings    `yaml:"node"`
 	Metrics collector.MetricsCollectorSettings `yaml:"metrics"`
 }
 
