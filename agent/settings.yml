@@ -4,6 +4,8 @@ node:
     config-path: "/etc/cassandra"
     log-path: "/var/log/cassandra"
     home-path: "/var/lib/cassandra"
+    data-path:
+      - "/var/lib/cassandra/data"
   collecting:
     configs:
       - "cassandra.yaml"

@@ -1,7 +1,9 @@
 package collector
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -25,9 +27,10 @@ type NodeCollectorSettings struct {
 }
 
 type CassandraSettings struct {
-	ConfigPath string `yaml:"config-path"`
-	LogPath    string `yaml:"log-path"`
-	HomePath   string `yaml:"home-path"`
+	ConfigPath string   `yaml:"config-path"`
+	LogPath    string   `yaml:"log-path"`
+	HomePath   string   `yaml:"home-path"`
+	DataPath   []string `yaml:"data-path"`
 }
 
 type CollectingSettings struct {
@@ -41,6 +44,9 @@ func NodeCollectorDefaultSettings() *NodeCollectorSettings {
 			ConfigPath: "/etc/cassandra",
 			LogPath:    "/var/log/cassandra",
 			HomePath:   "/var/lib/cassandra",
+			DataPath: []string{
+				"/var/lib/cassandra/data",
+			},
 		},
 		Collecting: CollectingSettings{
 			Configs: []string{
@@ -69,7 +75,7 @@ type NodeCollector struct {
 
 func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 	log := collector.Logger.WithFields(logrus.Fields{
-		"prefix": "LC " + agent.host,
+		"prefix": "NC " + agent.host,
 	})
 	collector.log = log
 	log.Info("Node collector started")
@@ -94,6 +100,13 @@ func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 		log.Error(err)
 	}
 	log.Info("Collecting IO stats completed.")
+
+	log.Info("Collecting disc info...")
+	err = collector.collectDiscInfo(agent)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Info("Collecting disc info completed.")
 
 	log.Info("Collecting configuration files...")
 	err = collector.downloadConfigurationFiles(agent)
@@ -192,10 +205,9 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 		"nodetool ring",
 	}
 
-	path := filepath.Join(collector.Path, agent.host, "nodetool")
-	err := os.MkdirAll(path, perm)
+	path, err := getInfoFolder(collector.Path, agent.host)
 	if err != nil {
-		return errors.New("Failed to create folder for nodetool info (" + err.Error() + ")")
+		return err
 	}
 
 	for _, command := range commands {
@@ -220,10 +232,9 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
 
-	path := filepath.Join(collector.Path, agent.host, "info")
-	err := os.MkdirAll(path, perm)
+	path, err := getInfoFolder(collector.Path, agent.host)
 	if err != nil {
-		return errors.New("Failed to create folder for info (" + err.Error() + ")")
+		return err
 	}
 
 	sout, serr, err := agent.ExecuteCommand(command)
@@ -235,8 +246,55 @@ func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 
 	err = ioutil.WriteFile(filepath.Join(path, "io_stat.info"), sout.Bytes(), perm)
 	if err != nil {
-		return errors.New("Failed to save '" + command + "' data (" + err.Error() + ")")
+		return errors.New("Failed to save iostate info (" + err.Error() + ")")
 	}
 
 	return nil
+}
+
+func (collector *NodeCollector) collectDiscInfo(agent *SSHAgent) error {
+	commands := [...]string{
+		"df -h",
+		"du -h",
+	}
+
+	path, err := getInfoFolder(collector.Path, agent.host)
+	if err != nil {
+		return err
+	}
+
+	var report bytes.Buffer
+
+	for _, command := range commands {
+		for _, dataPath := range collector.Settings.Cassandra.DataPath {
+			command := fmt.Sprintf("%s %s", command, dataPath)
+
+			sout, _, err := agent.ExecuteCommand(command)
+			if err != nil {
+				collector.log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
+				continue
+			}
+
+			report.WriteString(command)
+			report.WriteString(sout.String())
+			report.WriteString("\n")
+		}
+	}
+
+	err = ioutil.WriteFile(filepath.Join(path, "disk.info"), report.Bytes(), perm)
+	if err != nil {
+		return errors.New("Failed to save disk info (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
+func getInfoFolder(root string, host string) (string, error) {
+	path := filepath.Join(root, host, "info")
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		return "", errors.New("Failed to create info folder (" + err.Error() + ")")
+	}
+
+	return path, nil
 }
