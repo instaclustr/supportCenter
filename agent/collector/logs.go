@@ -72,7 +72,7 @@ func (collector *LogsCollector) Collect(agent *SSHAgent) error {
 		"prefix": "LC " + agent.host,
 	})
 	collector.log = log
-	log.Info("Logs collecting started")
+	log.Info("Node collector started")
 
 	err := agent.Connect()
 	if err != nil {
@@ -80,35 +80,43 @@ func (collector *LogsCollector) Collect(agent *SSHAgent) error {
 		return err
 	}
 
-	log.Info("Executing nodetool commands...")
+	log.Info("Collecting nodetool info...")
 	err = collector.collectNodeToolInfo(agent)
 	if err != nil {
 		log.Error(err)
 	}
-	log.Info("Executing nodetool commands  OK")
+	log.Info("Collecting nodetool info completed.")
 
-	log.Info("Downloading configuration files...")
+	// TODO Hint "sudo apt install sysstat"
+	log.Info("Collecting IO stats...")
+	err = collector.collectIOStats(agent)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Info("Collecting IO stats completed.")
+
+	log.Info("Collecting configuration files...")
 	err = collector.downloadConfigurationFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
-	log.Info("Downloading configuration files  OK")
+	log.Info("Collecting configuration files completed.")
 
-	log.Info("Downloading log files...")
+	log.Info("Collecting log files...")
 	err = collector.downloadLogFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
-	log.Info("Downloading log files  OK")
+	log.Info("Collecting log files completed.")
 
-	log.Info("Downloading gc log files...")
+	log.Info("Collecting gc log files...")
 	err = collector.downloadGCLogFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
-	log.Info("Downloading gc log files  OK")
+	log.Info("Collecting gc log files completed.")
 
-	log.Info("Logs collecting completed")
+	log.Info("Node collector completed")
 	return nil
 }
 
@@ -203,6 +211,31 @@ func (collector *LogsCollector) collectNodeToolInfo(agent *SSHAgent) error {
 			collector.log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
 			continue
 		}
+	}
+
+	return nil
+}
+
+// TODO Investigate (Process exited with status 124)
+func (collector *LogsCollector) collectIOStats(agent *SSHAgent) error {
+	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
+
+	path := filepath.Join(collector.Path, agent.host, "info")
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		return errors.New("Failed to create folder for info (" + err.Error() + ")")
+	}
+
+	sout, serr, err := agent.ExecuteCommand(command)
+	collector.log.Warn(sout)
+	collector.log.Warn(serr)
+	if err != nil {
+		return errors.New("Failed to execute '" + command + "' (" + err.Error() + ")")
+	}
+
+	err = ioutil.WriteFile(filepath.Join(path, "io_stat.info"), sout.Bytes(), perm)
+	if err != nil {
+		return errors.New("Failed to save '" + command + "' data (" + err.Error() + ")")
 	}
 
 	return nil
