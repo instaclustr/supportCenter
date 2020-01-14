@@ -84,13 +84,13 @@ func main() {
 
 	metricsCollector := collector.MetricsCollector{
 		Settings: &settings.Metrics,
-		Log:      log,
+		Logger:   log,
 		Path:     collectingPath,
 	}
 
 	logsCollector := collector.LogsCollector{
 		Settings: &settings.Logs,
-		Log:      log,
+		Logger:   log,
 		Path:     collectingPath,
 	}
 

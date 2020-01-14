@@ -61,14 +61,17 @@ Collector
 */
 type LogsCollector struct {
 	Settings *LogsCollectorSettings
-	Log      *logrus.Logger
+	Logger   *logrus.Logger
 	Path     string
+
+	log *logrus.Entry
 }
 
 func (collector *LogsCollector) Collect(agent *SSHAgent) error {
-	log := collector.Log.WithFields(logrus.Fields{
+	log := collector.Logger.WithFields(logrus.Fields{
 		"prefix": "LC " + agent.host,
 	})
+	collector.log = log
 	log.Info("Logs collecting started")
 
 	err := agent.Connect()
@@ -78,28 +81,28 @@ func (collector *LogsCollector) Collect(agent *SSHAgent) error {
 	}
 
 	log.Info("Executing nodetool commands...")
-	err = collector.collectNodeToolInfo(agent, log)
+	err = collector.collectNodeToolInfo(agent)
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info("Executing nodetool commands  OK")
 
 	log.Info("Downloading configuration files...")
-	err = collector.downloadConfigurationFiles(agent, log)
+	err = collector.downloadConfigurationFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info("Downloading configuration files  OK")
 
 	log.Info("Downloading log files...")
-	err = collector.downloadLogFiles(agent, log)
+	err = collector.downloadLogFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info("Downloading log files  OK")
 
 	log.Info("Downloading gc log files...")
-	err = collector.downloadGCLogFiles(agent, log)
+	err = collector.downloadGCLogFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
@@ -109,7 +112,7 @@ func (collector *LogsCollector) Collect(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent, log *logrus.Entry) error {
+func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent) error {
 	dest := filepath.Join(collector.Path, agent.host, "config")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
@@ -121,14 +124,14 @@ func (collector *LogsCollector) downloadConfigurationFiles(agent *SSHAgent, log 
 		scpAgent := scp.NewSCP(agent.client)
 		err = scpAgent.ReceiveFile(src, dest)
 		if err != nil {
-			log.Warn("Failed to receive config file '" + src + "' (" + err.Error() + ")")
+			collector.log.Warn("Failed to receive config file '" + src + "' (" + err.Error() + ")")
 		}
 	}
 
 	return nil
 }
 
-func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent, log *logrus.Entry) error {
+func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent) error {
 	dest := filepath.Join(collector.Path, agent.host, "logs")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
@@ -140,14 +143,14 @@ func (collector *LogsCollector) downloadLogFiles(agent *SSHAgent, log *logrus.En
 		scpAgent := scp.NewSCP(agent.client)
 		err = scpAgent.ReceiveFile(src, dest)
 		if err != nil {
-			log.Warn("Failed to receive log file '" + src + "' (" + err.Error() + ")")
+			collector.log.Warn("Failed to receive log file '" + src + "' (" + err.Error() + ")")
 		}
 	}
 
 	return nil
 }
 
-func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent, log *logrus.Entry) error {
+func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent) error {
 	dest := filepath.Join(collector.Path, agent.host, "gc_logs")
 	err := os.MkdirAll(dest, os.ModePerm)
 	if err != nil {
@@ -159,17 +162,17 @@ func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent, log *logrus.
 	scpAgent := scp.NewSCP(agent.client)
 	err = scpAgent.ReceiveDir(src, dest, func(parentDir string, info os.FileInfo) (b bool, err error) {
 		// TODO generate gc logs
-		log.Info("copy ", parentDir)
+		collector.log.Info("copy ", parentDir)
 		return true, nil
 	})
 	if err != nil {
-		log.Warn("Failed to receive gc log files (" + err.Error() + ")")
+		collector.log.Warn("Failed to receive gc log files (" + err.Error() + ")")
 	}
 
 	return nil
 }
 
-func (collector *LogsCollector) collectNodeToolInfo(agent *SSHAgent, log *logrus.Entry) error {
+func (collector *LogsCollector) collectNodeToolInfo(agent *SSHAgent) error {
 	commands := [...]string{
 		"nodetool info",
 		"nodetool version",
@@ -190,14 +193,14 @@ func (collector *LogsCollector) collectNodeToolInfo(agent *SSHAgent, log *logrus
 	for _, command := range commands {
 		sout, _, err := agent.ExecuteCommand(command)
 		if err != nil {
-			log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
+			collector.log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
 			continue
 		}
 
 		fileName := strings.ReplaceAll(command, " ", "_") + ".info"
 		err = ioutil.WriteFile(filepath.Join(path, fileName), sout.Bytes(), perm)
 		if err != nil {
-			log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
+			collector.log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
 			continue
 		}
 	}

@@ -43,12 +43,12 @@ Collector
 */
 type MetricsCollector struct {
 	Settings *MetricsCollectorSettings
-	Log      *logrus.Logger
+	Logger   *logrus.Logger
 	Path     string
 }
 
 func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
-	log := collector.Log.WithFields(logrus.Fields{
+	log := collector.Logger.WithFields(logrus.Fields{
 		"prefix": "MC " + agent.host,
 	})
 	log.Info("Metrics collecting started")
