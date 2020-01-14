@@ -225,7 +225,6 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 	return nil
 }
 
-// TODO Investigate (Process exited with status 124)
 func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
 
@@ -234,11 +233,10 @@ func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 		return err
 	}
 
-	sout, serr, err := agent.ExecuteCommand(command)
-	collector.log.Warn(sout)
-	collector.log.Warn(serr)
+	sout, _, err := agent.ExecuteCommand(command)
 	if err != nil {
-		return errors.New("Failed to execute '" + command + "' (" + err.Error() + ")")
+		// TODO Check if returned 124 status code
+		//return errors.New("Failed to execute '" + command + "' (" + err.Error() + ")")
 	}
 
 	err = ioutil.WriteFile(filepath.Join(path, "io_stat.info"), sout.Bytes(), os.ModePerm)

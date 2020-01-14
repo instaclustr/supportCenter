@@ -47,7 +47,7 @@ func (agent *SSHAgent) ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer,
 	session.Stderr = &errBuffer
 	err = session.Run(cmd)
 	if err != nil {
-		return nil, nil, errors.New("SSH agent: Failed to run command '" + cmd + "' on '" + agent.host + "'. (" + err.Error() + ")")
+		return &outBuffer, &errBuffer, errors.New("SSH agent: Failed to run command '" + cmd + "' on '" + agent.host + "'. (" + err.Error() + ")")
 	}
 
 	return &outBuffer, &errBuffer, nil
