@@ -4,14 +4,17 @@ import (
 	"errors"
 	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 /*
 Constants
 */
 const cassandraGCLogFolderName = "logs"
+const perm os.FileMode = 0755
 
 /*
 Settings
@@ -73,6 +76,13 @@ func (collector *LogsCollector) Collect(agent *SSHAgent) error {
 		log.Error(err)
 		return err
 	}
+
+	log.Info("Executing nodetool commands...")
+	err = collector.collectNodeToolInfo(agent, log)
+	if err != nil {
+		log.Error(err)
+	}
+	log.Info("Executing nodetool commands  OK")
 
 	log.Info("Downloading configuration files...")
 	err = collector.downloadConfigurationFiles(agent, log)
@@ -154,6 +164,42 @@ func (collector *LogsCollector) downloadGCLogFiles(agent *SSHAgent, log *logrus.
 	})
 	if err != nil {
 		log.Warn("Failed to receive gc log files (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
+func (collector *LogsCollector) collectNodeToolInfo(agent *SSHAgent, log *logrus.Entry) error {
+	commands := [...]string{
+		"nodetool info",
+		"nodetool version",
+		"nodetool status",
+		"nodetool tpstats",
+		"nodetool compactionstats -H",
+		"nodetool gossipinfo",
+		"nodetool cfstats -H",
+		"nodetool ring",
+	}
+
+	path := filepath.Join(collector.Path, agent.host, "nodetool")
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		return errors.New("Failed to create folder for nodetool info (" + err.Error() + ")")
+	}
+
+	for _, command := range commands {
+		sout, _, err := agent.ExecuteCommand(command)
+		if err != nil {
+			log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
+			continue
+		}
+
+		fileName := strings.ReplaceAll(command, " ", "_") + ".info"
+		err = ioutil.WriteFile(filepath.Join(path, fileName), sout.Bytes(), perm)
+		if err != nil {
+			log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
+			continue
+		}
 	}
 
 	return nil
