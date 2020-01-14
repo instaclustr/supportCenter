@@ -16,7 +16,6 @@ import (
 Constants
 */
 const cassandraGCLogFolderName = "logs"
-const perm os.FileMode = 0755
 
 /*
 Settings
@@ -109,21 +108,21 @@ func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 	log.Info("Collecting disc info completed.")
 
 	log.Info("Collecting configuration files...")
-	err = collector.downloadConfigurationFiles(agent)
+	err = collector.collectConfigurationFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info("Collecting configuration files completed.")
 
 	log.Info("Collecting log files...")
-	err = collector.downloadLogFiles(agent)
+	err = collector.collectLogFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info("Collecting log files completed.")
 
 	log.Info("Collecting gc log files...")
-	err = collector.downloadGCLogFiles(agent)
+	err = collector.collectGCLogFiles(agent)
 	if err != nil {
 		log.Error(err)
 	}
@@ -133,11 +132,11 @@ func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *NodeCollector) downloadConfigurationFiles(agent *SSHAgent) error {
-	dest := filepath.Join(collector.Path, agent.host, "config")
-	err := os.MkdirAll(dest, os.ModePerm)
+func (collector *NodeCollector) collectConfigurationFiles(agent *SSHAgent) error {
+	dest, err := makeFolder(collector.Path, agent.host, "config")
 	if err != nil {
-		return errors.New("Failed to create folder for configs (" + dest + ")")
+		return err
+
 	}
 
 	for _, name := range collector.Settings.Collecting.Configs {
@@ -152,11 +151,10 @@ func (collector *NodeCollector) downloadConfigurationFiles(agent *SSHAgent) erro
 	return nil
 }
 
-func (collector *NodeCollector) downloadLogFiles(agent *SSHAgent) error {
-	dest := filepath.Join(collector.Path, agent.host, "logs")
-	err := os.MkdirAll(dest, os.ModePerm)
+func (collector *NodeCollector) collectLogFiles(agent *SSHAgent) error {
+	dest, err := makeFolder(collector.Path, agent.host, "logs")
 	if err != nil {
-		return errors.New("Failed to create folder for logs (" + dest + ")")
+		return err
 	}
 
 	for _, name := range collector.Settings.Collecting.Logs {
@@ -171,11 +169,10 @@ func (collector *NodeCollector) downloadLogFiles(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *NodeCollector) downloadGCLogFiles(agent *SSHAgent) error {
-	dest := filepath.Join(collector.Path, agent.host, "gc_logs")
-	err := os.MkdirAll(dest, os.ModePerm)
+func (collector *NodeCollector) collectGCLogFiles(agent *SSHAgent) error {
+	dest, err := makeFolder(collector.Path, agent.host, "gc_logs")
 	if err != nil {
-		return errors.New("Failed to create folder for logs (" + dest + ")")
+		return err
 	}
 
 	src := filepath.Join(collector.Settings.Cassandra.HomePath, cassandraGCLogFolderName)
@@ -205,7 +202,7 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 		"nodetool ring",
 	}
 
-	path, err := getInfoFolder(collector.Path, agent.host)
+	path, err := makeFolder(collector.Path, agent.host, "info")
 	if err != nil {
 		return err
 	}
@@ -218,7 +215,7 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 		}
 
 		fileName := strings.ReplaceAll(command, " ", "_") + ".info"
-		err = ioutil.WriteFile(filepath.Join(path, fileName), sout.Bytes(), perm)
+		err = ioutil.WriteFile(filepath.Join(path, fileName), sout.Bytes(), os.ModePerm)
 		if err != nil {
 			collector.log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
 			continue
@@ -232,7 +229,7 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
 
-	path, err := getInfoFolder(collector.Path, agent.host)
+	path, err := makeFolder(collector.Path, agent.host, "info")
 	if err != nil {
 		return err
 	}
@@ -244,7 +241,7 @@ func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 		return errors.New("Failed to execute '" + command + "' (" + err.Error() + ")")
 	}
 
-	err = ioutil.WriteFile(filepath.Join(path, "io_stat.info"), sout.Bytes(), perm)
+	err = ioutil.WriteFile(filepath.Join(path, "io_stat.info"), sout.Bytes(), os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to save iostate info (" + err.Error() + ")")
 	}
@@ -258,7 +255,7 @@ func (collector *NodeCollector) collectDiscInfo(agent *SSHAgent) error {
 		"du -h",
 	}
 
-	path, err := getInfoFolder(collector.Path, agent.host)
+	path, err := makeFolder(collector.Path, agent.host, "info")
 	if err != nil {
 		return err
 	}
@@ -281,7 +278,7 @@ func (collector *NodeCollector) collectDiscInfo(agent *SSHAgent) error {
 		}
 	}
 
-	err = ioutil.WriteFile(filepath.Join(path, "disk.info"), report.Bytes(), perm)
+	err = ioutil.WriteFile(filepath.Join(path, "disk.info"), report.Bytes(), os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to save disk info (" + err.Error() + ")")
 	}
@@ -289,11 +286,11 @@ func (collector *NodeCollector) collectDiscInfo(agent *SSHAgent) error {
 	return nil
 }
 
-func getInfoFolder(root string, host string) (string, error) {
-	path := filepath.Join(root, host, "info")
-	err := os.MkdirAll(path, perm)
+func makeFolder(root string, host string, name string) (string, error) {
+	path := filepath.Join(root, host, name)
+	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil {
-		return "", errors.New("Failed to create info folder (" + err.Error() + ")")
+		return "", errors.New("Failed to create '" + name + "' folder (" + err.Error() + ")")
 	}
 
 	return path, nil
