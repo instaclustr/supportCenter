@@ -3,12 +3,26 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
-    user: root
     ports:
-      - "9090:9090"
+      - '9090:9090'
     volumes:
-      - /home/mars/sources/supportCenter/agent/data/20200115T150048/10.0.0.239:/etc/prometheus
-      - /home/mars/sources/supportCenter/agent/data/20200115T150048/10.0.0.239/snapshot:/prometheus
+      - ./configs/prometheus:/etc/prometheus
+      - ./data/metrics/snapshot:/snapshot
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.path=/snapshot'
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - '3000:3000'
+    env_file:
+      - 'env.grafana'
+    user: "0"
+    restart: always
+    links:
+      - prometheus
+    volumes:
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning/
