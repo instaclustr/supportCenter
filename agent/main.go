@@ -85,15 +85,16 @@ func main() {
 	metricsCollector := collector.MetricsCollector{
 		Settings: &settings.Metrics,
 		Logger:   log,
-		Path:     collectingPath,
+		Path:     filepath.Join(collectingPath, "metrics"),
 	}
 
 	nodesCollector := collector.NodeCollector{
 		Settings: &settings.Node,
 		Logger:   log,
-		Path:     collectingPath,
+		Path:     filepath.Join(collectingPath, "nodes"),
 	}
 
+	mcTargets.items = mcTargets.items[1:]
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
 	log.Info("Node collecting hosts are: ", ncTargets.String())
 

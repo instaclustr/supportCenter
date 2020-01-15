@@ -69,7 +69,7 @@ func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 	log.Info("Snapshot name: ", snapshot)
 
 	src := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder, snapshot)
-	dest := filepath.Join(collector.Path, agent.host, "/snapshot")
+	dest := filepath.Join(collector.Path, "snapshot")
 
 	log.Info("Downloading snapshot...")
 	err = collector.downloadSnapshot(agent, src, dest)
