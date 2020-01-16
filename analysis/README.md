@@ -25,4 +25,4 @@
     ```shell script
     docker-compose up
     ```
-5. Open Graphana page http://localhost:3000
+5. Open Grafana page http://localhost:3000
