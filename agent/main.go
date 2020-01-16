@@ -94,7 +94,9 @@ func main() {
 		Path:     filepath.Join(collectingPath, "nodes"),
 	}
 
-	mcTargets.items = mcTargets.items[1:]
+	if len(mcTargets.items) > 1 {
+		mcTargets.items = mcTargets.items[1:]
+	}
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
 	log.Info("Node collecting hosts are: ", ncTargets.String())
 
