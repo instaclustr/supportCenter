@@ -15,7 +15,7 @@ processors:
       field: 'log.file.path'
       target_prefix: 'cnode'
   - dissect:
-      tokenizer: '%{loglevel} [%{component}] %{timestamp} %{+timestamp},%{timestamp_ms} %{class} - %{message}'
+      tokenizer: '%{loglevel}  [%{component}] %{timestamp} %{+timestamp},%{timestamp_ms} %{class} - %{message}'
       field: 'message'
       target_prefix: 'cnode'
   - timestamp:
