@@ -13,6 +13,33 @@ services:
       - '--storage.tsdb.path=/snapshot'
     restart: always
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.5.2
+    container_name: elasticsearch
+    environment:
+      - node.name=es01
+      - discovery.type=single-node
+      - cluster.name=es-docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - 9200:9200
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.5.2
+    container_name: filebeat
+    depends_on:
+      - elasticsearch
+    environment:
+      - output.elasticsearch.hosts=["elasticsearch:9200"]
+    volumes:
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./data/nodes:/var/nodes:ro
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -22,7 +49,19 @@ services:
       - 'env.grafana'
     user: "0"
     restart: always
-    links:
+    depends_on:
       - prometheus
+      - elasticsearch
+      - filebeat
     volumes:
       - ./configs/grafana/provisioning:/etc/grafana/provisioning/
+
+#  kibana:
+#    container_name: kibana
+#    image: docker.elastic.co/kibana/kibana:7.5.2
+#    hostname: kibana
+#    ports:
+#      - "5601:5601"
+#    depends_on:
+#      - elasticsearch
+#      - filebeat

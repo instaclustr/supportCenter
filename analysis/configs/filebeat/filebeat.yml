@@ -1,0 +1,31 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - '/var/nodes/*/logs/system.log*'
+    document_type: cassandra_system_logs
+    multiline.pattern: '^TRACE|DEBUG|WARN|INFO|ERROR'
+    multiline.negate: true
+    multiline.match: after
+    fields_under_root: true
+
+processors:
+  - dissect:
+      tokenizer: '/var/nodes/%{hostname}/logs/system.log'
+      field: 'log.file.path'
+      target_prefix: 'cnode'
+  - dissect:
+      tokenizer: '%{loglevel} [%{component}] %{timestamp} %{+timestamp},%{timestamp_ms} %{class} - %{message}'
+      field: 'message'
+      target_prefix: 'cnode'
+  - timestamp:
+      field: 'cnode.timestamp'
+      layouts:
+        - '2006-01-02 15:04:05'
+#        - '2006-01-02 15:04:05.999'
+      timezone: 'UTC'
+      test:
+        - '2019-11-18 04:59:51'
+
+output.elasticsearch:
+  hosts: ['elasticsearch:9200']

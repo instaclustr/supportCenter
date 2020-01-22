@@ -23,7 +23,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Snapshot",
+      "datasource": "Metrics",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -132,7 +132,7 @@
     ]
   },
   "timezone": "",
-  "title": "Main",
+  "title": "Metrics",
   "uid": "k_eKD8EWz",
   "version": 2
 }
