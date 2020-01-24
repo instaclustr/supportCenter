@@ -15,13 +15,16 @@ Constants
 const prometheusSnapshotSuccess = "success"
 const prometheusSnapshotFolder = "snapshots"
 const prometheusCreateSnapshotTemplate = "curl -s -XPOST http://localhost:%d/api/v1/admin/tsdb/snapshot"
-const prometheusRemoveSnapshotTemplate = "rm -rf %s"
+const prometheusRemoveResourceTemplate = "rm -rf %s"
+const temporalSnapshotTarballPath = "/tmp/InstaclustrCollection.tar"
+const createSnapshotTarballTemplate = "tar -cf %s -C %s ."
 
 /*
 Settings
 */
 type MetricsCollectorSettings struct {
-	Prometheus PrometheusSettings `yaml:"prometheus"`
+	Prometheus     PrometheusSettings `yaml:"prometheus"`
+	copyCompressed bool               `yaml:"copy_compressed"`
 }
 
 type PrometheusSettings struct {
@@ -35,6 +38,7 @@ func MetricsCollectorDefaultSettings() *MetricsCollectorSettings {
 			Port:     9090,
 			DataPath: "/var/data",
 		},
+		copyCompressed: true,
 	}
 }
 
@@ -68,23 +72,51 @@ func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 	log.Info("Creating snapshot  OK")
 	log.Info("Snapshot name: ", snapshot)
 
+	resourceName := "snapshot"
 	src := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder, snapshot)
+
+	if collector.Settings.copyCompressed {
+		log.Info("Creating snapshot tarball...")
+		tarballErr := collector.tarballSnapshot(agent, src, temporalSnapshotTarballPath)
+		if tarballErr != nil {
+			log.Error(err)
+		} else {
+			log.Info("Creating snapshot tarball  OK")
+		}
+
+		log.Info("Cleanup snapshot...")
+		err = collector.removeResource(agent, src)
+		if err != nil {
+			log.Error(err)
+		} else {
+			log.Info("Cleanup snapshot  OK")
+		}
+
+		if tarballErr != nil {
+			return err
+		}
+
+		src = temporalSnapshotTarballPath
+		resourceName = "snapshot tarball"
+	}
+
 	dest := filepath.Join(collector.Path, "snapshot")
 
 	log.Info("Downloading snapshot...")
 	err = collector.downloadSnapshot(agent, src, dest)
 	if err != nil {
 		log.Error(err)
+	} else {
+		log.Info("Downloading snapshot  OK")
 	}
-	log.Info("Downloading snapshot  OK")
 
-	log.Info("Cleanup snapshot...")
-	err = collector.removeSnapshot(agent, src)
+	log.Info(fmt.Sprint("Cleanup ", resourceName, "..."))
+	err = collector.removeResource(agent, src)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	log.Info("Cleanup snapshot  OK")
+	log.Info(fmt.Sprint("Cleanup ", resourceName, "  OK"))
 
 	log.Info("Metrics collecting completed")
 	return nil
@@ -97,7 +129,7 @@ func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, erro
 		return "", err
 	}
 	if serr.Len() > 0 {
-		return "", errors.New("Wrong output on creating snapshot: " + serr.String())
+		return "", errors.New("Failed to create prometheus snapshot: " + serr.String())
 	}
 
 	type PrometheusSnapshotResponse struct {
@@ -120,6 +152,19 @@ func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, erro
 	return response.Data.Name, nil
 }
 
+func (collector *MetricsCollector) tarballSnapshot(agent *SSHAgent, src string, dest string) error {
+	createTarballCommand := fmt.Sprintf(createSnapshotTarballTemplate, dest, src)
+	_, serr, err := agent.ExecuteCommand(createTarballCommand)
+	if err != nil {
+		return err
+	}
+	if serr.Len() > 0 {
+		return errors.New("Failed to create snapshot tarball: " + serr.String())
+	}
+
+	return nil
+}
+
 func (collector *MetricsCollector) downloadSnapshot(agent *SSHAgent, src string, dest string) error {
 	scpAgent := scp.NewSCP(agent.client)
 	err := scpAgent.ReceiveDir(src, dest, nil)
@@ -131,15 +176,11 @@ func (collector *MetricsCollector) downloadSnapshot(agent *SSHAgent, src string,
 	return nil
 }
 
-func (collector *MetricsCollector) removeSnapshot(agent *SSHAgent, path string) error {
-	_, serr, err := agent.ExecuteCommand(fmt.Sprintf(prometheusRemoveSnapshotTemplate, path))
+func (collector *MetricsCollector) removeResource(agent *SSHAgent, path string) error {
+	_, _, err := agent.ExecuteCommand(fmt.Sprintf(prometheusRemoveResourceTemplate, path))
 
 	if err != nil {
-		return errors.New("Failed to remove snapshot (" + err.Error() + ")")
-	}
-
-	if serr.Len() > 0 {
-		return errors.New("Wrong output on creating snapshot: " + serr.String())
+		return errors.New("Failed to remove resource '" + path + "' (" + err.Error() + ")")
 	}
 
 	return nil
