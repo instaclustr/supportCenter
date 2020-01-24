@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 /*
@@ -85,27 +86,43 @@ func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 		return err
 	}
 
-	log.Info("Collecting nodetool info...")
-	err = collector.collectNodeToolInfo(agent)
-	if err != nil {
-		log.Error(err)
-	}
-	log.Info("Collecting nodetool info completed.")
+	InfoTaskCount := 3
+	var wg sync.WaitGroup
+	wg.Add(InfoTaskCount)
 
-	// TODO Hint "sudo apt install sysstat"
-	log.Info("Collecting IO stats...")
-	err = collector.collectIOStats(agent)
-	if err != nil {
-		log.Error(err)
-	}
-	log.Info("Collecting IO stats completed.")
+	go func() {
+		defer wg.Done()
 
-	log.Info("Collecting disc info...")
-	err = collector.collectDiscInfo(agent)
-	if err != nil {
-		log.Error(err)
-	}
-	log.Info("Collecting disc info completed.")
+		log.Info("Collecting nodetool info...")
+		err = collector.collectNodeToolInfo(agent)
+		if err != nil {
+			log.Error(err)
+		}
+		log.Info("Collecting nodetool info completed.")
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		// TODO Hint "sudo apt install sysstat"
+		log.Info("Collecting IO stats...")
+		err = collector.collectIOStats(agent)
+		if err != nil {
+			log.Error(err)
+		}
+		log.Info("Collecting IO stats completed.")
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		log.Info("Collecting disc info...")
+		err = collector.collectDiscInfo(agent)
+		if err != nil {
+			log.Error(err)
+		}
+		log.Info("Collecting disc info completed.")
+	}()
 
 	log.Info("Collecting configuration files...")
 	err = collector.collectConfigurationFiles(agent)
@@ -127,6 +144,8 @@ func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 		log.Error(err)
 	}
 	log.Info("Collecting gc log files completed.")
+
+	wg.Wait()
 
 	log.Info("Node collector completed")
 	return nil
