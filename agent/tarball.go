@@ -33,7 +33,11 @@ func Zip(source string, target string) error {
 		if info.IsDir() {
 			header.Name += "/"
 		} else {
-			header.Method = zip.Deflate
+			if filepath.Ext(info.Name()) == ".tar" {
+				header.Method = zip.Store
+			} else {
+				header.Method = zip.Deflate
+			}
 		}
 
 		writer, err := archive.CreateHeader(header)
