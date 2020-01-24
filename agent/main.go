@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -100,10 +101,15 @@ func main() {
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
 	log.Info("Node collecting hosts are: ", ncTargets.String())
 
-	completed := make(chan bool, len(mcTargets.items)+len(ncTargets.items))
+	taskCount := len(mcTargets.items) + len(ncTargets.items)
+
+	var wg sync.WaitGroup
+	wg.Add(taskCount)
 
 	for _, host := range mcTargets.items {
 		go func(host string) {
+			defer wg.Done()
+
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
 			agent.SetConfig(sshConfig)
@@ -112,13 +118,13 @@ func main() {
 			if err != nil {
 				log.Error("Failed to collect metrics on '" + host + "'")
 			}
-
-			completed <- true
 		}(host)
 	}
 
 	for _, host := range ncTargets.items {
 		go func(host string) {
+			defer wg.Done()
+
 			agent := &collector.SSHAgent{}
 			agent.SetTarget(host, *port)
 			agent.SetConfig(sshConfig)
@@ -127,16 +133,10 @@ func main() {
 			if err != nil {
 				log.Error("Failed to collect node on '" + host + "'")
 			}
-
-			completed <- true
 		}(host)
 	}
 
-	// TODO Check errors
-	// TODO Add timeout maybe
-	for i := 0; i < len(mcTargets.items)+len(ncTargets.items); i++ {
-		<-completed
-	}
+	wg.Wait()
 
 	// Compressing tarball
 	log.Info("Compressing collected data (", collectingPath, ")...")
