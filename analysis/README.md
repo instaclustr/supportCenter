@@ -1,5 +1,12 @@
 # Usage
 
+## Automatic
+```shell script
+cd ./analysis
+./analyze.sh path/to/collected/tarball/20200128T200545-data.zip
+```
+
+## Deprecated
 1. Copy collected data (zip file) to `data` folder
 2. Extract tarball in `data` folder
     ```shell script 
