@@ -28,7 +28,7 @@ func Zip(source string, target string) error {
 			return err
 		}
 
-		header.Name = strings.TrimPrefix(path, source)
+		header.Name = "." + strings.TrimPrefix(path, source)
 
 		if info.IsDir() {
 			header.Name += "/"
