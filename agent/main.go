@@ -81,6 +81,10 @@ func main() {
 	// Collecting
 	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
 	collectingPath := filepath.Join(".", collectingRootFolder, collectingTimestamp)
+	if os.MkdirAll(collectingPath, os.ModePerm) != nil {
+		log.Warn("Failed to create collecting folder '" + collectingPath + "'")
+	}
+
 	log.Info("Collecting timestamp: ", collectingTimestamp)
 
 	metricsCollector := collector.MetricsCollector{
