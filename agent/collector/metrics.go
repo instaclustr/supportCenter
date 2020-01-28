@@ -137,6 +137,7 @@ func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, erro
 		Data   struct {
 			Name string
 		}
+		Error string
 	}
 
 	var response PrometheusSnapshotResponse
@@ -146,7 +147,7 @@ func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, erro
 	}
 
 	if response.Status != prometheusSnapshotSuccess {
-		return "", errors.New("Failed to create prometheus snapshot (status: " + response.Status + ")")
+		return "", errors.New("Failed to create prometheus snapshot (status: " + response.Status + " '" + response.Error + "')")
 	}
 
 	return response.Data.Name, nil
