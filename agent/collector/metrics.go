@@ -24,7 +24,7 @@ Settings
 */
 type MetricsCollectorSettings struct {
 	Prometheus     PrometheusSettings `yaml:"prometheus"`
-	copyCompressed bool               `yaml:"copy_compressed"`
+	CopyCompressed bool               `yaml:"copy_compressed"`
 }
 
 type PrometheusSettings struct {
@@ -38,7 +38,7 @@ func MetricsCollectorDefaultSettings() *MetricsCollectorSettings {
 			Port:     9090,
 			DataPath: "/var/data",
 		},
-		copyCompressed: true,
+		CopyCompressed: true,
 	}
 }
 
@@ -75,7 +75,7 @@ func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 	resourceName := "snapshot"
 	src := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder, snapshot)
 
-	if collector.Settings.copyCompressed {
+	if collector.Settings.CopyCompressed {
 		log.Info("Creating snapshot tarball...")
 		tarballErr := collector.tarballSnapshot(agent, src, temporalSnapshotTarballPath)
 		if tarballErr != nil {
