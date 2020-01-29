@@ -79,7 +79,7 @@ func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 		log.Info("Creating snapshot tarball...")
 		tarballErr := collector.tarballSnapshot(agent, src, temporalSnapshotTarballPath)
 		if tarballErr != nil {
-			log.Error(err)
+			log.Error(tarballErr)
 		} else {
 			log.Info("Creating snapshot tarball  OK")
 		}
@@ -93,7 +93,7 @@ func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 		}
 
 		if tarballErr != nil {
-			return err
+			return tarballErr
 		}
 
 		src = temporalSnapshotTarballPath
