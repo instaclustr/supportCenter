@@ -7,8 +7,10 @@ import (
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -66,15 +68,16 @@ func main() {
 	}
 
 	// SSH Settings
-	hostKeyCallback := loadHostKeys()
-	authSigners := loadAuthKeys()
+	knownHostsKeyCallback := loadKnownHostsKey()
+	privateKeySigners := loadPrivateKeySigners()
+	agentForwardingSigners := loadAgentForwardingSigners()
 
 	sshConfig := &ssh.ClientConfig{
 		User: *user,
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(authSigners...),
+			ssh.PublicKeys(append(privateKeySigners, agentForwardingSigners...)...),
 		},
-		HostKeyCallback: hostKeyCallback,
+		HostKeyCallback: knownHostsKeyCallback,
 		Timeout:         time.Second * 2,
 	}
 
@@ -155,7 +158,7 @@ func main() {
 	log.Info("Tarball: ", tarball)
 }
 
-func loadHostKeys() ssh.HostKeyCallback {
+func loadKnownHostsKey() ssh.HostKeyCallback {
 	hostKeyCallback := ssh.InsecureIgnoreHostKey()
 	if !(*disableKnownHosts) {
 		hostsFilePath := filepath.Join(os.Getenv("HOME"), knownHostsPath)
@@ -172,7 +175,7 @@ func loadHostKeys() ssh.HostKeyCallback {
 	return hostKeyCallback
 }
 
-func loadAuthKeys() []ssh.Signer {
+func loadPrivateKeySigners() []ssh.Signer {
 	var signers []ssh.Signer
 
 	keys := []string{
@@ -202,4 +205,24 @@ func loadAuthKeys() []ssh.Signer {
 	}
 
 	return signers
+}
+
+func loadAgentForwardingSigners() []ssh.Signer {
+	socket := os.Getenv("SSH_AUTH_SOCK")
+
+	conn, err := net.Dial("unix", socket)
+	if err == nil {
+		agentClient := agent.NewClient(conn)
+
+		signers, err := agentClient.Signers()
+		if err == nil {
+			return signers
+		} else {
+			log.Warn("Failed to provide agent forwarded signers: %v", err)
+		}
+	} else {
+		log.Warn("Failed to open SSH_AUTH_SOCK: %v", err)
+	}
+
+	return []ssh.Signer{}
 }
