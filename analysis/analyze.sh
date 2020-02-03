@@ -11,7 +11,7 @@ if [ -z "$1" ]; then
 fi
 
 # Clean the data folder
-sudo rm -rf $DATA_DIR
+rm -rf $DATA_DIR
 mkdir $DATA_DIR
 
 # Extract collected info in data folder
@@ -19,16 +19,17 @@ unzip $1 -d $DATA_DIR
 
 if [ -f "$METRICS_PACKAGE" ]; then
   tar -vxf $METRICS_PACKAGE -C $METRICS_PATH
-  sudo chown -R 65534:65534 $METRICS_PATH
 fi
 
 # Start dockers
+export USER_ID=$(id -u)
+export GROUP_ID=$(id -g)
 docker-compose up
 
 read -r -p "Cleanup? (files, docker volumes)" response
 if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
   docker-compose rm -f -s -v
-  sudo rm -rf $DATA_DIR
+  rm -rf $DATA_DIR
 else
   exit 0
 fi

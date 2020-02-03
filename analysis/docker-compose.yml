@@ -12,6 +12,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/snapshot'
     restart: always
+    user: $USER_ID:$GROUP_ID
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.5.2
