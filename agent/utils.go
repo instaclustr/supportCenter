@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type StringList struct {
@@ -23,8 +24,37 @@ func (arr *StringList) Set(value string) error {
 	return nil
 }
 
-func validateCommandLineArguments() {
+func parseAndValidateCommandLineArguments() {
 	if *user == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if len(strings.TrimSpace(*mcTimeRangeFrom)) > 0 {
+		timestamp, err := time.Parse(time.RFC3339, *mcTimeRangeFrom)
+		if err != nil {
+			log.Error("Failed to parse 'from' datetime (", *mcTimeRangeFrom, "):  ", err.Error())
+
+			flag.PrintDefaults()
+			os.Exit(1)
+		}
+		mcTimestampFrom = timestamp
+	}
+
+	if len(strings.TrimSpace(*mcTimeRangeTo)) > 0 {
+		timestamp, err := time.Parse(time.RFC3339, *mcTimeRangeTo)
+		if err != nil {
+			log.Error("Failed to parse 'to' datetime: (", *mcTimeRangeFrom, "): ", err.Error())
+
+			flag.PrintDefaults()
+			os.Exit(1)
+		}
+		mcTimestampTo = timestamp
+	}
+
+	if mcTimestampFrom.After(mcTimestampTo) {
+		log.Error("Incorrect metrics collecting time span ", mcTimestampFrom.UTC(), " after ", mcTimestampTo.UTC())
+
 		flag.PrintDefaults()
 		os.Exit(1)
 	}

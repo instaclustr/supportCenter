@@ -26,10 +26,15 @@ var (
 	user              = flag.String("l", "", "User to log in as on the remote machine")
 	port              = flag.Int("p", 22, "Port to connect to on the remote host")
 	disableKnownHosts = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
+	mcTimeRangeFrom   = flag.String("mc-from", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. Optional.")
+	mcTimeRangeTo     = flag.String("mc-to", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. Optional. ")
 
 	mcTargets   StringList
 	ncTargets   StringList
 	privateKeys StringList
+
+	mcTimestampFrom = time.Unix(0, 0).UTC()
+	mcTimestampTo   = time.Now().UTC()
 )
 
 var log = logrus.New()
@@ -50,7 +55,7 @@ func main() {
 	log.Info("Instaclustr Agent")
 
 	flag.Parse()
-	validateCommandLineArguments()
+	parseAndValidateCommandLineArguments()
 
 	// Settings
 	settings := &Settings{
@@ -91,9 +96,11 @@ func main() {
 	log.Info("Collecting timestamp: ", collectingTimestamp)
 
 	metricsCollector := collector.MetricsCollector{
-		Settings: &settings.Metrics,
-		Logger:   log,
-		Path:     filepath.Join(collectingPath, "metrics"),
+		Settings:      &settings.Metrics,
+		Logger:        log,
+		Path:          filepath.Join(collectingPath, "metrics"),
+		TimestampFrom: mcTimestampFrom,
+		TimestampTo:   mcTimestampTo,
 	}
 
 	nodesCollector := collector.NodeCollector{
@@ -106,6 +113,7 @@ func main() {
 		mcTargets.items = mcTargets.items[1:]
 	}
 	log.Info("Metrics collecting hosts are: ", mcTargets.String())
+	log.Info("Metrics collecting time span: ", mcTimestampFrom.UTC(), " ... ", mcTimestampTo.UTC())
 	log.Info("Node collecting hosts are: ", ncTargets.String())
 
 	taskCount := len(mcTargets.items) + len(ncTargets.items)

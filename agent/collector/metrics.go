@@ -7,6 +7,8 @@ import (
 	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 /*
@@ -18,6 +20,8 @@ const prometheusCreateSnapshotTemplate = "curl -s -XPOST http://localhost:%d/api
 const prometheusRemoveResourceTemplate = "rm -rf %s"
 const temporalSnapshotTarballPath = "/tmp/InstaclustrCollection.tar"
 const createSnapshotTarballTemplate = "tar -cf %s -C %s ."
+const getSnapshotBlockListTemplate = "ls -d %s/*/"
+const getSnapshotBlockMetadataTemplate = "cat %s/meta.json"
 
 /*
 Settings
@@ -49,6 +53,9 @@ type MetricsCollector struct {
 	Settings *MetricsCollectorSettings
 	Logger   *logrus.Logger
 	Path     string
+
+	TimestampFrom time.Time
+	TimestampTo   time.Time
 }
 
 func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
@@ -74,6 +81,15 @@ func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 
 	resourceName := "snapshot"
 	src := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder, snapshot)
+
+	{
+		log.Info("Lightening snapshot...")
+		err := collector.lightenSnapshot(agent, src)
+		if err != nil {
+			log.Warn("Failed to lighten snapshot: " + err.Error())
+		}
+		log.Info("Lightening snapshot  OK")
+	}
 
 	if collector.Settings.CopyCompressed {
 		log.Info("Creating snapshot tarball...")
@@ -151,6 +167,93 @@ func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, erro
 	}
 
 	return response.Data.Name, nil
+}
+
+func (collector *MetricsCollector) lightenSnapshot(agent *SSHAgent, src string) error {
+	blocks, err := getBlockList(agent, src)
+	if err != nil {
+		return err
+	}
+
+	for index, block := range blocks {
+		metadata, err := getBlockMetadata(agent, block)
+		if err != nil {
+			collector.Logger.Warn("Ignoring block (" + block + "): " + err.Error())
+			continue
+		}
+
+		if metadata.Version != 1 {
+			collector.Logger.Warn("Ignoring block (", block, "): version #", metadata.Version, " unsupported")
+			continue
+		}
+
+		blockMinTimestamp := time.Unix(metadata.MinTime/int64(1000), (metadata.MinTime%int64(1000))*int64(1000000)).UTC()
+		blockMaxTimestamp := time.Unix(metadata.MaxTime/int64(1000), (metadata.MaxTime%int64(1000))*int64(1000000)).UTC()
+
+		fallsIntoTheSelectedTimeRange := false
+		logMessage := "will be skipped"
+
+		if (blockMinTimestamp.After(collector.TimestampFrom) || blockMaxTimestamp.After(collector.TimestampFrom)) &&
+			(blockMinTimestamp.Before(collector.TimestampTo) || blockMaxTimestamp.Before(collector.TimestampTo)) {
+			fallsIntoTheSelectedTimeRange = true
+			logMessage = "falls into the time span"
+		}
+
+		collector.Logger.Info("Block ", index+1, "/", len(blocks), " ", metadata.Ulid, "  ", blockMinTimestamp, " .. ", blockMaxTimestamp, ": ", logMessage)
+
+		if !fallsIntoTheSelectedTimeRange {
+			err := collector.removeResource(agent, block)
+			if err != nil {
+				collector.Logger.Warn("Failed to drop snapshot block: " + err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
+func getBlockList(agent *SSHAgent, src string) ([]string, error) {
+	command := fmt.Sprintf(getSnapshotBlockListTemplate, src)
+	sout, serr, err := agent.ExecuteCommand(command)
+	if err != nil {
+		return nil, err
+	}
+	if serr.Len() > 0 {
+		return nil, errors.New("Failed to get block list of prometheus snapshot: " + serr.String())
+	}
+
+	return strings.Fields(sout.String()), nil
+}
+
+type blockMetadata struct {
+	Ulid    string
+	Version int
+	MinTime int64
+	MaxTime int64
+	Stats   struct {
+		NumSamples uint64
+		NumSeries  uint64
+		NumChunks  uint64
+	}
+}
+
+func getBlockMetadata(agent *SSHAgent, src string) (*blockMetadata, error) {
+	command := fmt.Sprintf(getSnapshotBlockMetadataTemplate, src)
+	sout, serr, err := agent.ExecuteCommand(command)
+	if err != nil {
+		return nil, err
+	}
+	if serr.Len() > 0 {
+		return nil, errors.New("Failed to get block metadata: " + serr.String())
+	}
+
+	var metadata blockMetadata
+	err = json.Unmarshal(sout.Bytes(), &metadata)
+	if err != nil {
+		return nil, errors.New("Failed to unmarshal block metadata (" + err.Error() + ")")
+	}
+
+	return &metadata, nil
 }
 
 func (collector *MetricsCollector) tarballSnapshot(agent *SSHAgent, src string, dest string) error {
