@@ -125,11 +125,11 @@ func main() {
 		go func(host string) {
 			defer wg.Done()
 
-			agent := &collector.SSHAgent{}
-			agent.SetTarget(host, *port)
-			agent.SetConfig(sshConfig)
+			sshAgent := &collector.SSHAgent{}
+			sshAgent.SetTarget(host, *port)
+			sshAgent.SetConfig(sshConfig)
 
-			err := metricsCollector.Collect(agent)
+			err := metricsCollector.Collect(sshAgent)
 			if err != nil {
 				log.Error("Failed to collect metrics on '" + host + "'")
 			}
@@ -140,11 +140,11 @@ func main() {
 		go func(host string) {
 			defer wg.Done()
 
-			agent := &collector.SSHAgent{}
-			agent.SetTarget(host, *port)
-			agent.SetConfig(sshConfig)
+			sshAgent := &collector.SSHAgent{}
+			sshAgent.SetTarget(host, *port)
+			sshAgent.SetConfig(sshConfig)
 
-			err := nodesCollector.Collect(agent)
+			err := nodesCollector.Collect(sshAgent)
 			if err != nil {
 				log.Error("Failed to collect node on '" + host + "'")
 			}
