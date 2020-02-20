@@ -7,11 +7,21 @@ To agent supports the following command line flags:
 * `-disable_known_hosts` - Skip loading the user’s known-hosts file
 * `-l USER` - User to log in as on the remote machine
 * `-mc HOST/IP` - Metrics collecting hostname. E.g. the prometheus server.
+* `-mc-from "DATETIME"` - Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. (Default 1970-01-01 00:00:00 +0000 UTC)
+* `-mc-to "DATETIME"` - Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. (Default current datetime)
 * `-nc HOST/IP` - Node collecting hostnames - This can be a comma seperated list of nodes
 * `-p int` - Port to connect to on the remote host (default 22) via SSH
-* `-pk PATH` - List of files from which the identification keys (private key) for public key authentication are read
+* `-pk PATH` - List of files from which the identification keys (private key) for public key authentication are read, in addition to default one (Default [HOME]/.ssh/id_rsa)
 
 E.g. `./agent -disable_known_hosts -l ubuntu -mc 10.0.56.1 -nc 10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4 -pk ~/.ssh/id_rsa`
+
+**Examples:**
+
+_Fetch metrics by specific time span_
+```shell script
+./agent -disable_known_hosts -l ubuntu -mc metrics.instrasoft.com -mc-from "2020-02-18T00:00:00Z" -mc-to "2020-02-20T00:00:00Z"
+```
+
 
 The agent will then collect data from the nodes and prometheus server and store the resulting tarball (and intermediate results) in a folder call `data/` (from your working directory).
 
