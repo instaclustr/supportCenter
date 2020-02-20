@@ -26,8 +26,8 @@ var (
 	user              = flag.String("l", "", "User to log in as on the remote machine")
 	port              = flag.Int("p", 22, "Port to connect to on the remote host")
 	disableKnownHosts = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
-	mcTimeRangeFrom   = flag.String("mc-from", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. Optional.")
-	mcTimeRangeTo     = flag.String("mc-to", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. Optional. ")
+	mcTimeRangeFrom   = flag.String("mc-from", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. (Default 1970-01-01 00:00:00 +0000 UTC)")
+	mcTimeRangeTo     = flag.String("mc-to", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. (Default current datetime)")
 
 	mcTargets   StringList
 	ncTargets   StringList
@@ -48,7 +48,7 @@ func init() {
 func init() {
 	flag.Var(&mcTargets, "mc", "Metrics collecting hostname")
 	flag.Var(&ncTargets, "nc", "Node collecting hostnames")
-	flag.Var(&privateKeys, "pk", "List of files from which the identification keys (private key) for public key authentication are read")
+	flag.Var(&privateKeys, "pk", "List of files from which the identification keys (private key) for public key authentication are read, in addition to default one (Default [HOME]/.ssh/id_rsa)")
 }
 
 func main() {
