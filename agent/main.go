@@ -4,11 +4,13 @@ import (
 	"agent/collector"
 	"flag"
 	"fmt"
+	"github.com/mattn/go-colorable"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -33,6 +35,8 @@ var (
 	ncTargets   StringList
 	privateKeys StringList
 
+	collectingTimestamp = time.Now().UTC().Format(timestampPattern)
+
 	mcTimestampFrom = time.Unix(0, 0).UTC()
 	mcTimestampTo   = time.Now().UTC()
 )
@@ -41,7 +45,9 @@ var log = logrus.New()
 
 func init() {
 	log.Formatter = &prefixed.TextFormatter{
-		FullTimestamp: true,
+		ForceFormatting: true,
+		ForceColors:     true,
+		FullTimestamp:   true,
 	}
 }
 
@@ -52,6 +58,15 @@ func init() {
 }
 
 func main() {
+	// Init file logging
+	agentLogPath := filepath.Join(".", "agent.log")
+	agentLogFile, err := os.OpenFile(agentLogPath, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatalf("Failed to open agent log file %s for output: %s", agentLogPath, err)
+	}
+	defer agentLogFile.Close()
+	log.SetOutput(io.MultiWriter(colorable.NewColorableStdout(), agentLogFile))
+
 	log.Info("Instaclustr Agent")
 
 	flag.Parse()
@@ -87,7 +102,6 @@ func main() {
 	}
 
 	// Collecting
-	collectingTimestamp := time.Now().UTC().Format(timestampPattern)
 	collectingPath := filepath.Join(".", collectingRootFolder, collectingTimestamp)
 	if os.MkdirAll(collectingPath, os.ModePerm) != nil {
 		log.Warn("Failed to create collecting folder '" + collectingPath + "'")
@@ -155,8 +169,18 @@ func main() {
 
 	// Compressing tarball
 	log.Info("Compressing collected data (", collectingPath, ")...")
+
+	// - terminate file logging
+	log.SetOutput(os.Stdout)
+	agentLogFile.Sync()
+	agentLogFile.Close()
+	err = CopyFile(agentLogPath, filepath.Join(collectingPath, "agent.log"))
+	if err != nil {
+		log.Warn("Failed to copy agent log to collecting folder: " + err.Error())
+	}
+
 	tarball := filepath.Join(collectingRootFolder, fmt.Sprint(collectingTimestamp, "-data.zip"))
-	err := Zip(collectingPath, tarball)
+	err = Zip(collectingPath, tarball)
 	if err != nil {
 		log.Error("Failed to compress collected data (", err, ")")
 	} else {
