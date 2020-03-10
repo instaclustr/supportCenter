@@ -19,7 +19,7 @@ E.g. `./agent -disable_known_hosts -l ubuntu -mc 10.0.56.1 -nc 10.0.0.1,10.0.0.2
 
 _Fetch metrics by specific time span_
 ```shell script
-./agent -disable_known_hosts -l ubuntu -mc metrics.instrasoft.com -mc-from "2020-02-18T00:00:00Z" -mc-to "2020-02-20T00:00:00Z"
+./agent -disable_known_hosts -l ubuntu -nc 10.0.0.1,10.0.0.2 -mc metrics.example.com -mc-from "2020-02-18T00:00:00Z" -mc-to "2020-02-20T00:00:00Z"
 ```
 
 
@@ -53,3 +53,7 @@ metrics:
     port: 9090
     data-path: "/prometheus/data/"
 ```
+## Cassandra deployment requirements
+This collection agent depends on having a properly configured and running Prometheus metrics server running and collecting metrics from your Cassandra cluster in combination with the cassandra-exporter. For instructions on setting up cassandra-exporter with Cassandra, please see the [cassandra-exporter setup docs](https://github.com/instaclustr/cassandra-exporter#usage).
+
+To deploy and install prometheus please see the [prometheus documentation](https://prometheus.io/docs/prometheus/latest/installation/).
