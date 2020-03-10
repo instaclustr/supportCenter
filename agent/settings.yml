@@ -1,4 +1,5 @@
-# Node collection
+agent:
+  collected-data-path: "~/.instaclustr/supportcenter/DATA"
 node:
   cassandra:
     config-path: "/etc/cassandra"
@@ -14,8 +15,6 @@ node:
       - "logback.xml"
     logs:
       - "system.log"
-
-# Metrics collecting
 metrics:
   prometheus:
     port: 9090

@@ -23,7 +23,7 @@ _Fetch metrics by specific time span_
 ```
 
 
-The agent will then collect data from the nodes and prometheus server and store the resulting tarball (and intermediate results) in a folder call `data/` (from your working directory).
+The agent will then collect data from the nodes and prometheus server and store the resulting tarball (and intermediate results) in a data folder (the path can be configured in the settings `agent.collected-data-path`, default path `~/.instaclustr/supportcenter/DATA`).
 
 The agent also supports a settings file which allows you to control the expected location for various log and configuration files. Currently the agent will look for settings.yml in the working directory which you launch the tool from. In the future, you can define the settings file via a command line flag and the default location will be in a "dot" folder e.g `~/.instaclustr`.
 

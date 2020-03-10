@@ -20,7 +20,6 @@ import (
 )
 
 const timestampPattern = "20060102T150405"
-const collectingRootFolder = "data"
 const knownHostsPath = "/.ssh/known_hosts"
 const defaultPrivateKeyPath = "/.ssh/id_rsa"
 
@@ -74,6 +73,7 @@ func main() {
 
 	// Settings
 	settings := &Settings{
+		Agent:   *AgentDefaultSettings(),
 		Node:    *collector.NodeCollectorDefaultSettings(),
 		Metrics: *collector.MetricsCollectorDefaultSettings(),
 	}
@@ -101,8 +101,10 @@ func main() {
 		Timeout:         time.Second * 2,
 	}
 
+	collectingRootFolder := Expand(settings.Agent.CollectedDataPath)
+
 	// Collecting
-	collectingPath := filepath.Join(".", collectingRootFolder, collectingTimestamp)
+	collectingPath := filepath.Join(collectingRootFolder, collectingTimestamp)
 	if os.MkdirAll(collectingPath, os.ModePerm) != nil {
 		log.Warn("Failed to create collecting folder '" + collectingPath + "'")
 	}

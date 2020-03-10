@@ -7,7 +7,18 @@ import (
 	"os"
 )
 
+type AgentSettings struct {
+	CollectedDataPath string `yaml:"collected-data-path"`
+}
+
+func AgentDefaultSettings() *AgentSettings {
+	return &AgentSettings{
+		CollectedDataPath: "~/.instaclustr/supportcenter/DATA",
+	}
+}
+
 type Settings struct {
+	Agent   AgentSettings                      `yaml:"agent"`
 	Node    collector.NodeCollectorSettings    `yaml:"node"`
 	Metrics collector.MetricsCollectorSettings `yaml:"metrics"`
 }

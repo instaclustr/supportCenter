@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -67,6 +68,23 @@ func Exists(name string) (bool, error) {
 		return false, nil
 	}
 	return err == nil, err
+}
+
+func Expand(path string) string {
+
+	if len(path) == 0 {
+		return path
+	}
+
+	if path[0] != '~' {
+		return path
+	}
+
+	if len(path) > 1 && path[1] != '/' {
+		return path
+	}
+
+	return filepath.Join(os.Getenv("HOME"), path[1:])
 }
 
 func CopyFile(src string, dst string) error {
