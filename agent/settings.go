@@ -4,8 +4,14 @@ import (
 	"agent/collector"
 	"errors"
 	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 )
+
+const defaultAgentHomePath = "~/.instaclustr/supportcenter"
+const defaultProfileContainerName = "DEFAULT"
 
 type AgentSettings struct {
 	CollectedDataPath string `yaml:"collected-data-path"`
@@ -37,4 +43,28 @@ func (settings *Settings) Load(file string) error {
 	}
 
 	return nil
+}
+
+func SearchSettingsPath(configPath string) string {
+
+	// Config file defined
+	if len(configPath) > 0 {
+		return configPath
+	}
+
+	// Default profile
+	profilePath := Expand(filepath.Join(defaultAgentHomePath, defaultProfileContainerName))
+	exists, _ := Exists(profilePath)
+	if exists == true {
+		data, err := ioutil.ReadFile(profilePath)
+		if err == nil {
+			configName := strings.TrimSpace(string(data))
+			if len(configName) > 0 {
+				return filepath.Join(defaultAgentHomePath, configName)
+			}
+		}
+	}
+
+	// Default settings in the working dir
+	return "settings.yml"
 }

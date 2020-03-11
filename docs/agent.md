@@ -12,6 +12,7 @@ To agent supports the following command line flags:
 * `-nc HOST/IP` - Node collecting hostnames - This can be a comma seperated list of nodes
 * `-p int` - Port to connect to on the remote host (default 22) via SSH
 * `-pk PATH` - List of files from which the identification keys (private key) for public key authentication are read, in addition to default one (Default [HOME]/.ssh/id_rsa)
+* `-config PATH` - The path to the configuration file
 
 E.g. `./agent -disable_known_hosts -l ubuntu -mc 10.0.56.1 -nc 10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4 -pk ~/.ssh/id_rsa`
 
@@ -25,12 +26,17 @@ _Fetch metrics by specific time span_
 
 The agent will then collect data from the nodes and prometheus server and store the resulting tarball (and intermediate results) in a data folder (the path can be configured in the settings `agent.collected-data-path`, default path `~/.instaclustr/supportcenter/DATA`).
 
-The agent also supports a settings file which allows you to control the expected location for various log and configuration files. Currently the agent will look for settings.yml in the working directory which you launch the tool from. In the future, you can define the settings file via a command line flag and the default location will be in a "dot" folder e.g `~/.instaclustr`.
+The agent also supports a settings file which allows you to control the expected location for various log and 
+configuration files.  
+Configuration file search order:
+* Defined via a command line flag `-config`
+* The dotfiles directory `~/.instaclustr/supportcenter` that can contain multiple config files. By the default profile `~/.instaclustr/supportcenter/DEFAULT` (which has the name of the config file as its contents).
+* Default one, `settings.yaml` in the working dir
 
-An example settings.yml file is below:
-
+_Example (settings file)_
 ```yaml
-# Node collection
+agent:
+  collected-data-path: "~/.instaclustr/supportcenter/DATA"
 node:
   cassandra:
     config-path: "/etc/cassandra"
@@ -46,8 +52,6 @@ node:
       - "logback.xml"
     logs:
       - "system.log"
-
-# Metrics collecting
 metrics:
   prometheus:
     port: 9090

@@ -29,6 +29,7 @@ var (
 	disableKnownHosts = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
 	mcTimeRangeFrom   = flag.String("mc-from", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. (Default 1970-01-01 00:00:00 +0000 UTC)")
 	mcTimeRangeTo     = flag.String("mc-to", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. (Default current datetime)")
+	configPath        = flag.String("config", "", "The path to the configuration file")
 
 	mcTargets   StringList
 	ncTargets   StringList
@@ -77,7 +78,8 @@ func main() {
 		Node:    *collector.NodeCollectorDefaultSettings(),
 		Metrics: *collector.MetricsCollectorDefaultSettings(),
 	}
-	settingsPath := "settings.yml"
+
+	settingsPath := Expand(SearchSettingsPath(*configPath))
 	exists, _ := Exists(settingsPath)
 	if exists == true {
 		log.Info("Loading settings from '", settingsPath, "'...")
@@ -85,6 +87,8 @@ func main() {
 		if err != nil {
 			log.Warn(err)
 		}
+	} else {
+		log.Warn("The settings file '", settingsPath, "' does not exists")
 	}
 
 	// SSH Settings
