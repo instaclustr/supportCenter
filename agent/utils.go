@@ -107,3 +107,28 @@ func CopyFile(src string, dst string) error {
 
 	return nil
 }
+
+func JoinToSet(a []string, b []string) []string {
+
+	capacity := len(a) + len(b)
+	values := make([]string, 0, capacity)
+	set := make(map[string]bool, capacity)
+
+	values = joinToSet(a, set, values)
+	values = joinToSet(b, set, values)
+
+	return values
+}
+
+func joinToSet(items []string, set map[string]bool, values []string) []string {
+	for _, item := range items {
+		value := strings.TrimSpace(item)
+		if len(value) > 0 {
+			if !set[value] {
+				set[value] = true
+				values = append(values, value)
+			}
+		}
+	}
+	return values
+}

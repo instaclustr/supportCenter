@@ -1,5 +1,8 @@
+# Common settings
 agent:
   collected-data-path: "~/.instaclustr/supportcenter/DATA"
+
+# Collecting settings
 node:
   cassandra:
     config-path: "/etc/cassandra"
@@ -19,3 +22,8 @@ metrics:
   prometheus:
     port: 9090
     data-path: "/data/snapshots/"
+
+# Collecting targets (node and metric hostnames)
+target:
+  nodes:
+  metrics:

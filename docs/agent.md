@@ -9,7 +9,7 @@ To agent supports the following command line flags:
 * `-mc HOST/IP` - Metrics collecting hostname. E.g. the prometheus server.
 * `-mc-from "DATETIME"` - Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. (Default 1970-01-01 00:00:00 +0000 UTC)
 * `-mc-to "DATETIME"` - Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. (Default current datetime)
-* `-nc HOST/IP` - Node collecting hostnames - This can be a comma seperated list of nodes
+* `-nc HOST/IP` - Node collecting hostnames - This can be a comma separated list of nodes
 * `-p int` - Port to connect to on the remote host (default 22) via SSH
 * `-pk PATH` - List of files from which the identification keys (private key) for public key authentication are read, in addition to default one (Default [HOME]/.ssh/id_rsa)
 * `-config PATH` - The path to the configuration file
@@ -33,10 +33,15 @@ Configuration file search order:
 * The dotfiles directory `~/.instaclustr/supportcenter` that can contain multiple config files. By the default profile `~/.instaclustr/supportcenter/DEFAULT` (which has the name of the config file as its contents).
 * Default one, `settings.yaml` in the working dir
 
+The agent will collect data from the nodes specified in the settings (`target.nodes`, `target.metrics`) and in the command line arguments (`-nc`, `-mc`).
+
 _Example (settings file)_
 ```yaml
+# Common settings
 agent:
   collected-data-path: "~/.instaclustr/supportcenter/DATA"
+
+# Collecting settings
 node:
   cassandra:
     config-path: "/etc/cassandra"
@@ -56,6 +61,14 @@ metrics:
   prometheus:
     port: 9090
     data-path: "/prometheus/data/"
+
+# Collecting targets (node and metric hostnames)
+target:
+  nodes:
+    - '10.0.0.1'
+    - '10.0.0.2'
+  metrics:
+    - 'metrics.example.com'
 ```
 ## Cassandra deployment requirements
 This collection agent depends on having a properly configured and running Prometheus metrics server running and collecting metrics from your Cassandra cluster in combination with the cassandra-exporter. For instructions on setting up cassandra-exporter with Cassandra, please see the [cassandra-exporter setup docs](https://github.com/instaclustr/cassandra-exporter#usage).

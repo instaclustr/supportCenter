@@ -77,6 +77,7 @@ func main() {
 		Agent:   *AgentDefaultSettings(),
 		Node:    *collector.NodeCollectorDefaultSettings(),
 		Metrics: *collector.MetricsCollectorDefaultSettings(),
+		Target:  *TargetDefaultSettings(),
 	}
 
 	settingsPath := Expand(SearchSettingsPath(*configPath))
@@ -129,19 +130,22 @@ func main() {
 		Path:     filepath.Join(collectingPath, "nodes"),
 	}
 
-	if len(mcTargets.items) > 1 {
-		mcTargets.items = mcTargets.items[1:]
-	}
-	log.Info("Metrics collecting hosts are: ", mcTargets.String())
-	log.Info("Metrics collecting time span: ", mcTimestampFrom.UTC(), " ... ", mcTimestampTo.UTC())
-	log.Info("Node collecting hosts are: ", ncTargets.String())
+	metricsTargets := JoinToSet(settings.Target.Metrics, mcTargets.items)
+	nodeTargets := JoinToSet(settings.Target.Nodes, ncTargets.items)
 
-	taskCount := len(mcTargets.items) + len(ncTargets.items)
+	if len(metricsTargets) > 1 {
+		metricsTargets = metricsTargets[1:]
+	}
+	log.Info("Metrics collecting hosts are: ", metricsTargets)
+	log.Info("Metrics collecting time span: ", mcTimestampFrom.UTC(), " ... ", mcTimestampTo.UTC())
+	log.Info("Node collecting hosts are: ", nodeTargets)
+
+	taskCount := len(metricsTargets) + len(nodeTargets)
 
 	var wg sync.WaitGroup
 	wg.Add(taskCount)
 
-	for _, host := range mcTargets.items {
+	for _, host := range metricsTargets {
 		go func(host string) {
 			defer wg.Done()
 
@@ -156,7 +160,7 @@ func main() {
 		}(host)
 	}
 
-	for _, host := range ncTargets.items {
+	for _, host := range nodeTargets {
 		go func(host string) {
 			defer wg.Done()
 

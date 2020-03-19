@@ -23,10 +23,23 @@ func AgentDefaultSettings() *AgentSettings {
 	}
 }
 
+type TargetSettings struct {
+	Nodes   []string `yaml:"nodes"`
+	Metrics []string `yaml:"metrics"`
+}
+
+func TargetDefaultSettings() *TargetSettings {
+	return &TargetSettings{
+		Nodes:   []string{},
+		Metrics: []string{},
+	}
+}
+
 type Settings struct {
 	Agent   AgentSettings                      `yaml:"agent"`
 	Node    collector.NodeCollectorSettings    `yaml:"node"`
 	Metrics collector.MetricsCollectorSettings `yaml:"metrics"`
+	Target  TargetSettings                     `yaml:"target"`
 }
 
 func (settings *Settings) Load(file string) error {
