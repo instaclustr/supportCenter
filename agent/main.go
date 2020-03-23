@@ -60,7 +60,7 @@ func init() {
 func main() {
 	// Init file logging
 	agentLogPath := filepath.Join(".", "agent.log")
-	agentLogFile, err := os.OpenFile(agentLogPath, os.O_CREATE|os.O_WRONLY, 0666)
+	agentLogFile, err := os.Create(agentLogPath)
 	if err != nil {
 		log.Fatalf("Failed to open agent log file %s for output: %s", agentLogPath, err)
 	}
