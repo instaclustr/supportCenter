@@ -260,10 +260,10 @@ func loadAgentForwardingSigners() []ssh.Signer {
 		if err == nil {
 			return signers
 		} else {
-			log.Warn("Failed to provide agent forwarded signers: %v", err)
+			log.Warnf("Failed to provide agent forwarded signers: %v", err)
 		}
 	} else {
-		log.Warn("Failed to open SSH_AUTH_SOCK: %v", err)
+		log.Warnf("Failed to open SSH_AUTH_SOCK: %v", err)
 	}
 
 	return []ssh.Signer{}
