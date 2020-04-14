@@ -14,6 +14,11 @@ You can download precompiled binaries for the agent command line tool on the [re
 go build
 ```
 
+### Run test
+```shell script
+go test ./... -v
+```
+
 ## Notes
 ### Libs
 ```shell script
