@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
 	"path/filepath"
 	"strings"
@@ -58,9 +57,9 @@ type MetricsCollector struct {
 	TimestampTo   time.Time
 }
 
-func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
+func (collector *MetricsCollector) Collect(agent SSHCollectingAgent) error {
 	log := collector.Logger.WithFields(logrus.Fields{
-		"prefix": "MC " + agent.host,
+		"prefix": "MC " + agent.GetHost(),
 	})
 	log.Info("Metrics collecting started")
 
@@ -138,7 +137,7 @@ func (collector *MetricsCollector) Collect(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, error) {
+func (collector *MetricsCollector) createSnapshot(agent SSHCollectingAgent) (string, error) {
 	createSnapshotCommand := fmt.Sprintf(prometheusCreateSnapshotTemplate, collector.Settings.Prometheus.Port)
 	sout, serr, err := agent.ExecuteCommand(createSnapshotCommand)
 	if err != nil {
@@ -169,7 +168,7 @@ func (collector *MetricsCollector) createSnapshot(agent *SSHAgent) (string, erro
 	return response.Data.Name, nil
 }
 
-func (collector *MetricsCollector) lightenSnapshot(agent *SSHAgent, src string) error {
+func (collector *MetricsCollector) lightenSnapshot(agent SSHCollectingAgent, src string) error {
 	blocks, err := getBlockList(agent, src)
 	if err != nil {
 		return err
@@ -212,7 +211,7 @@ func (collector *MetricsCollector) lightenSnapshot(agent *SSHAgent, src string) 
 	return nil
 }
 
-func getBlockList(agent *SSHAgent, src string) ([]string, error) {
+func getBlockList(agent SSHCollectingAgent, src string) ([]string, error) {
 	command := fmt.Sprintf(getSnapshotBlockListTemplate, src)
 	sout, serr, err := agent.ExecuteCommand(command)
 	if err != nil {
@@ -237,7 +236,7 @@ type blockMetadata struct {
 	}
 }
 
-func getBlockMetadata(agent *SSHAgent, src string) (*blockMetadata, error) {
+func getBlockMetadata(agent SSHCollectingAgent, src string) (*blockMetadata, error) {
 	command := fmt.Sprintf(getSnapshotBlockMetadataTemplate, src)
 	sout, serr, err := agent.ExecuteCommand(command)
 	if err != nil {
@@ -256,7 +255,7 @@ func getBlockMetadata(agent *SSHAgent, src string) (*blockMetadata, error) {
 	return &metadata, nil
 }
 
-func (collector *MetricsCollector) tarballSnapshot(agent *SSHAgent, src string, dest string) error {
+func (collector *MetricsCollector) tarballSnapshot(agent SSHCollectingAgent, src string, dest string) error {
 	createTarballCommand := fmt.Sprintf(createSnapshotTarballTemplate, dest, src)
 	_, serr, err := agent.ExecuteCommand(createTarballCommand)
 	if err != nil {
@@ -269,10 +268,8 @@ func (collector *MetricsCollector) tarballSnapshot(agent *SSHAgent, src string, 
 	return nil
 }
 
-func (collector *MetricsCollector) downloadSnapshot(agent *SSHAgent, src string, dest string) error {
-	scpAgent := scp.NewSCP(agent.client)
-	err := scpAgent.ReceiveDir(src, dest, nil)
-
+func (collector *MetricsCollector) downloadSnapshot(agent SSHCollectingAgent, src string, dest string) error {
+	err := agent.ReceiveDir(src, dest, nil)
 	if err != nil {
 		return errors.New("Failed to receive snapshot (" + err.Error() + ")")
 	}
@@ -280,7 +277,7 @@ func (collector *MetricsCollector) downloadSnapshot(agent *SSHAgent, src string,
 	return nil
 }
 
-func (collector *MetricsCollector) removeResource(agent *SSHAgent, path string) error {
+func (collector *MetricsCollector) removeResource(agent SSHCollectingAgent, path string) error {
 	_, _, err := agent.ExecuteCommand(fmt.Sprintf(prometheusRemoveResourceTemplate, path))
 
 	if err != nil {

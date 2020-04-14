@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/hnakamur/go-scp"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
@@ -73,9 +72,10 @@ type NodeCollector struct {
 	log *logrus.Entry
 }
 
-func (collector *NodeCollector) Collect(agent *SSHAgent) error {
+func (collector *NodeCollector) Collect(agent SSHCollectingAgent) error {
+
 	log := collector.Logger.WithFields(logrus.Fields{
-		"prefix": "NC " + agent.host,
+		"prefix": "NC " + agent.GetHost(),
 	})
 	collector.log = log
 	log.Info("Node collector started")
@@ -151,8 +151,8 @@ func (collector *NodeCollector) Collect(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *NodeCollector) collectConfigurationFiles(agent *SSHAgent) error {
-	dest, err := makeFolder(collector.Path, agent.host, "config")
+func (collector *NodeCollector) collectConfigurationFiles(agent SSHCollectingAgent) error {
+	dest, err := makeFolder(collector.Path, agent.GetHost(), "config")
 	if err != nil {
 		return err
 
@@ -160,8 +160,7 @@ func (collector *NodeCollector) collectConfigurationFiles(agent *SSHAgent) error
 
 	for _, name := range collector.Settings.Collecting.Configs {
 		src := filepath.Join(collector.Settings.Cassandra.ConfigPath, name)
-		scpAgent := scp.NewSCP(agent.client)
-		err = scpAgent.ReceiveFile(src, dest)
+		err = agent.ReceiveFile(src, dest)
 		if err != nil {
 			collector.log.Warn("Failed to receive config file '" + src + "' (" + err.Error() + ")")
 		}
@@ -170,16 +169,15 @@ func (collector *NodeCollector) collectConfigurationFiles(agent *SSHAgent) error
 	return nil
 }
 
-func (collector *NodeCollector) collectLogFiles(agent *SSHAgent) error {
-	dest, err := makeFolder(collector.Path, agent.host, "logs")
+func (collector *NodeCollector) collectLogFiles(agent SSHCollectingAgent) error {
+	dest, err := makeFolder(collector.Path, agent.GetHost(), "logs")
 	if err != nil {
 		return err
 	}
 
 	for _, name := range collector.Settings.Collecting.Logs {
 		src := filepath.Join(collector.Settings.Cassandra.LogPath, name)
-		scpAgent := scp.NewSCP(agent.client)
-		err = scpAgent.ReceiveFile(src, dest)
+		err = agent.ReceiveFile(src, dest)
 		if err != nil {
 			collector.log.Warn("Failed to receive log file '" + src + "' (" + err.Error() + ")")
 		}
@@ -188,16 +186,15 @@ func (collector *NodeCollector) collectLogFiles(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *NodeCollector) collectGCLogFiles(agent *SSHAgent) error {
-	dest, err := makeFolder(collector.Path, agent.host, "gc_logs")
+func (collector *NodeCollector) collectGCLogFiles(agent SSHCollectingAgent) error {
+	dest, err := makeFolder(collector.Path, agent.GetHost(), "gc_logs")
 	if err != nil {
 		return err
 	}
 
 	src := filepath.Join(collector.Settings.Cassandra.HomePath, cassandraGCLogFolderName)
 
-	scpAgent := scp.NewSCP(agent.client)
-	err = scpAgent.ReceiveDir(src, dest, func(parentDir string, info os.FileInfo) (b bool, err error) {
+	err = agent.ReceiveDir(src, dest, func(parentDir string, info os.FileInfo) (b bool, err error) {
 		// TODO generate gc logs
 		collector.log.Info("copy ", parentDir)
 		return true, nil
@@ -209,7 +206,7 @@ func (collector *NodeCollector) collectGCLogFiles(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
+func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) error {
 	commands := [...]string{
 		"nodetool info",
 		"nodetool version",
@@ -221,7 +218,7 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 		"nodetool ring",
 	}
 
-	path, err := makeFolder(collector.Path, agent.host, "info")
+	path, err := makeFolder(collector.Path, agent.GetHost(), "info")
 	if err != nil {
 		return err
 	}
@@ -244,10 +241,10 @@ func (collector *NodeCollector) collectNodeToolInfo(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
+func (collector *NodeCollector) collectIOStats(agent SSHCollectingAgent) error {
 	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
 
-	path, err := makeFolder(collector.Path, agent.host, "info")
+	path, err := makeFolder(collector.Path, agent.GetHost(), "info")
 	if err != nil {
 		return err
 	}
@@ -266,13 +263,13 @@ func (collector *NodeCollector) collectIOStats(agent *SSHAgent) error {
 	return nil
 }
 
-func (collector *NodeCollector) collectDiscInfo(agent *SSHAgent) error {
+func (collector *NodeCollector) collectDiscInfo(agent SSHCollectingAgent) error {
 	commands := [...]string{
 		"df -h",
 		"du -h",
 	}
 
-	path, err := makeFolder(collector.Path, agent.host, "info")
+	path, err := makeFolder(collector.Path, agent.GetHost(), "info")
 	if err != nil {
 		return err
 	}
