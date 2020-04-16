@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
+	"github.com/spf13/afero"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,6 +68,8 @@ type NodeCollector struct {
 	Settings *NodeCollectorSettings
 	Logger   *logrus.Logger
 	Path     string
+
+	AppFs afero.Fs
 
 	log *logrus.Entry
 }
@@ -152,10 +154,9 @@ func (collector *NodeCollector) Collect(agent SSHCollectingAgent) error {
 }
 
 func (collector *NodeCollector) collectConfigurationFiles(agent SSHCollectingAgent) error {
-	dest, err := makeFolder(collector.Path, agent.GetHost(), "config")
+	dest, err := collector.makeFolder(agent.GetHost(), "config")
 	if err != nil {
 		return err
-
 	}
 
 	for _, name := range collector.Settings.Collecting.Configs {
@@ -170,7 +171,7 @@ func (collector *NodeCollector) collectConfigurationFiles(agent SSHCollectingAge
 }
 
 func (collector *NodeCollector) collectLogFiles(agent SSHCollectingAgent) error {
-	dest, err := makeFolder(collector.Path, agent.GetHost(), "logs")
+	dest, err := collector.makeFolder(agent.GetHost(), "logs")
 	if err != nil {
 		return err
 	}
@@ -187,7 +188,7 @@ func (collector *NodeCollector) collectLogFiles(agent SSHCollectingAgent) error 
 }
 
 func (collector *NodeCollector) collectGCLogFiles(agent SSHCollectingAgent) error {
-	dest, err := makeFolder(collector.Path, agent.GetHost(), "gc_logs")
+	dest, err := collector.makeFolder(agent.GetHost(), "gc_logs")
 	if err != nil {
 		return err
 	}
@@ -218,7 +219,7 @@ func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) er
 		"nodetool ring",
 	}
 
-	path, err := makeFolder(collector.Path, agent.GetHost(), "info")
+	path, err := collector.makeFolder(agent.GetHost(), "info")
 	if err != nil {
 		return err
 	}
@@ -231,7 +232,7 @@ func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) er
 		}
 
 		fileName := strings.ReplaceAll(command, " ", "_") + ".info"
-		err = ioutil.WriteFile(filepath.Join(path, fileName), sout.Bytes(), os.ModePerm)
+		err = afero.WriteFile(collector.AppFs, filepath.Join(path, fileName), sout.Bytes(), os.ModePerm)
 		if err != nil {
 			collector.log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
 			continue
@@ -244,7 +245,7 @@ func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) er
 func (collector *NodeCollector) collectIOStats(agent SSHCollectingAgent) error {
 	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
 
-	path, err := makeFolder(collector.Path, agent.GetHost(), "info")
+	path, err := collector.makeFolder(agent.GetHost(), "info")
 	if err != nil {
 		return err
 	}
@@ -255,7 +256,7 @@ func (collector *NodeCollector) collectIOStats(agent SSHCollectingAgent) error {
 		//return errors.New("Failed to execute '" + command + "' (" + err.Error() + ")")
 	}
 
-	err = ioutil.WriteFile(filepath.Join(path, "io_stat.info"), sout.Bytes(), os.ModePerm)
+	err = afero.WriteFile(collector.AppFs, filepath.Join(path, "io_stat.info"), sout.Bytes(), os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to save iostate info (" + err.Error() + ")")
 	}
@@ -269,7 +270,7 @@ func (collector *NodeCollector) collectDiscInfo(agent SSHCollectingAgent) error 
 		"du -h",
 	}
 
-	path, err := makeFolder(collector.Path, agent.GetHost(), "info")
+	path, err := collector.makeFolder(agent.GetHost(), "info")
 	if err != nil {
 		return err
 	}
@@ -292,7 +293,7 @@ func (collector *NodeCollector) collectDiscInfo(agent SSHCollectingAgent) error 
 		}
 	}
 
-	err = ioutil.WriteFile(filepath.Join(path, "disk.info"), report.Bytes(), os.ModePerm)
+	err = afero.WriteFile(collector.AppFs, filepath.Join(path, "disk.info"), report.Bytes(), os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to save disk info (" + err.Error() + ")")
 	}
@@ -300,9 +301,9 @@ func (collector *NodeCollector) collectDiscInfo(agent SSHCollectingAgent) error 
 	return nil
 }
 
-func makeFolder(root string, host string, name string) (string, error) {
-	path := filepath.Join(root, host, name)
-	err := os.MkdirAll(path, os.ModePerm)
+func (collector *NodeCollector) makeFolder(host string, name string) (string, error) {
+	path := filepath.Join(collector.Path, host, name)
+	err := collector.AppFs.MkdirAll(path, os.ModePerm)
 	if err != nil {
 		return "", errors.New("Failed to create '" + name + "' folder (" + err.Error() + ")")
 	}

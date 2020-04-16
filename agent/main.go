@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/mattn/go-colorable"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -128,6 +129,7 @@ func main() {
 		Settings: &settings.Node,
 		Logger:   log,
 		Path:     filepath.Join(collectingPath, "nodes"),
+		AppFs:    afero.NewOsFs(),
 	}
 
 	metricsTargets := JoinToSet(settings.Target.Metrics, mcTargets.items)

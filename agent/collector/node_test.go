@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -96,6 +97,7 @@ func TestNodeCollector_Collect(t *testing.T) {
 		Settings: NodeCollectorDefaultSettings(),
 		Logger:   logger,
 		Path:     "some/path",
+		AppFs:    afero.NewMemMapFs(),
 	}
 
 	err := collector.Collect(mockedSSHAgent)
@@ -129,6 +131,37 @@ func TestNodeCollector_Collect_OnFailedToConnect(t *testing.T) {
 	err := collector.Collect(mockedSSHAgent)
 	if assert.Error(t, err) {
 		assert.EqualError(t, err, "SSH agent: Failed to establish connection to remote host 'Remote test' (some error)")
+	}
+
+	mockedSSHAgent.AssertExpectations(t)
+
+	hook.Reset()
+}
+
+func TestNodeCollector_collectDiscInfo(t *testing.T) {
+	mockedSSHAgent := new(mockedSSHAgentObject)
+	mockedSSHAgent.
+		On("GetHost").
+		Return("node-test-host-1")
+	mockedSSHAgent.
+		On("ExecuteCommand", collectDiscInfo1Command).
+		Return(bytes.NewBufferString("some data"), bytes.NewBufferString(""), nil)
+	mockedSSHAgent.
+		On("ExecuteCommand", collectDiscInfo2Command).
+		Return(bytes.NewBufferString("some data"), bytes.NewBufferString(""), nil)
+
+	logger, hook := test.NewNullLogger()
+
+	collector := NodeCollector{
+		Settings: NodeCollectorDefaultSettings(),
+		Logger:   logger,
+		Path:     "some/path",
+		AppFs:    afero.NewMemMapFs(),
+	}
+
+	err := collector.collectDiscInfo(mockedSSHAgent)
+	if err != nil {
+		t.Errorf("Failed: %v", err)
 	}
 
 	mockedSSHAgent.AssertExpectations(t)
