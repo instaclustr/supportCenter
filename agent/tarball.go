@@ -9,7 +9,7 @@ import (
 )
 
 func Zip(source string, target string) error {
-	zipfile, err := os.Create(target)
+	zipfile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
