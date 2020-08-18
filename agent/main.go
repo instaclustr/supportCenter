@@ -136,7 +136,7 @@ func main() {
 	nodeTargets := JoinToSet(settings.Target.Nodes, ncTargets.items)
 
 	if len(metricsTargets) > 1 {
-		metricsTargets = metricsTargets[1:]
+		metricsTargets = metricsTargets[:1]
 	}
 	log.Info("Metrics collecting hosts are: ", metricsTargets)
 	log.Info("Metrics collecting time span: ", mcTimestampFrom.UTC(), " ... ", mcTimestampTo.UTC())
