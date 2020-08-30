@@ -25,12 +25,13 @@ const knownHostsPath = "/.ssh/known_hosts"
 const defaultPrivateKeyPath = "/.ssh/id_rsa"
 
 var (
-	user              = flag.String("l", "", "User to log in as on the remote machine")
-	port              = flag.Int("p", 22, "Port to connect to on the remote host")
-	disableKnownHosts = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
-	mcTimeRangeFrom   = flag.String("mc-from", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. (Default 1970-01-01 00:00:00 +0000 UTC)")
-	mcTimeRangeTo     = flag.String("mc-to", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. (Default current datetime)")
-	configPath        = flag.String("config", "", "The path to the configuration file")
+	user               = flag.String("l", "", "User to log in as on the remote machine")
+	port               = flag.Int("p", 22, "Port to connect to on the remote host")
+	disableKnownHosts  = flag.Bool("disable_known_hosts", false, "Skip loading the user’s known-hosts file")
+	mcTimeRangeFrom    = flag.String("mc-from", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics from some time point. (Default 1970-01-01 00:00:00 +0000 UTC)")
+	mcTimeRangeTo      = flag.String("mc-to", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. (Default current datetime)")
+	configPath         = flag.String("config", "", "The path to the configuration file")
+	generateConfigPath = flag.String("generate-config", "", "The path where the default settings file will be created")
 
 	mcTargets   StringList
 	ncTargets   StringList
@@ -81,6 +82,16 @@ func main() {
 		Target:  *TargetDefaultSettings(),
 	}
 
+	if len(*generateConfigPath) > 0 {
+		err := settings.Save(*generateConfigPath)
+		if err != nil {
+			log.Warn("Failed to create default settings file: " + err.Error())
+		} else {
+			log.Info("The default settings '", *generateConfigPath, "' file cleared")
+		}
+
+	}
+
 	settingsPath := Expand(SearchSettingsPath(*configPath))
 	exists, _ := Exists(settingsPath)
 	if exists == true {
@@ -91,6 +102,9 @@ func main() {
 		}
 	} else {
 		log.Warn("The settings file '", settingsPath, "' does not exists")
+		if len(*generateConfigPath) <= 0 {
+			log.Warn("Use '-generate-config' option to create file with default settings")
+		}
 	}
 
 	// SSH Settings

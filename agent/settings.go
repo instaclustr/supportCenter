@@ -58,6 +58,22 @@ func (settings *Settings) Load(file string) error {
 	return nil
 }
 
+func (settings *Settings) Save(file string) error {
+	f, err := os.Create(file)
+	if err != nil {
+		return errors.New("Failed to save settings file (" + err.Error() + ")")
+	}
+	defer f.Close()
+
+	encoder := yaml.NewEncoder(f)
+	err = encoder.Encode(settings)
+	if err != nil {
+		return errors.New("Failed to marshal settings file (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
 func SearchSettingsPath(configPath string) string {
 
 	// Config file defined
