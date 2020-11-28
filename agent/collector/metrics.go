@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -18,7 +17,6 @@ const prometheusSnapshotFolder = "snapshots"
 const prometheusCreateSnapshotTemplate = "curl -s -XPOST http://localhost:%d/api/v1/admin/tsdb/snapshot"
 const temporalSnapshotTarballPath = "/tmp/InstaclustrCollection.tar"
 const createSnapshotTarballTemplate = "tar -cf %s -C %s ."
-const getSnapshotBlockListTemplate = "ls -d %s/*/"
 const snapshotMetadataFileName = "meta.json"
 
 /*
@@ -212,16 +210,13 @@ func (collector *MetricsCollector) lightenSnapshot(agent SSHCollectingAgent, src
 }
 
 func getBlockList(agent SSHCollectingAgent, src string) ([]string, error) {
-	command := fmt.Sprintf(getSnapshotBlockListTemplate, src)
-	sout, serr, err := agent.ExecuteCommand(command)
+
+	directories, err := agent.ListDirectory(src)
 	if err != nil {
-		return nil, err
-	}
-	if serr.Len() > 0 {
-		return nil, errors.New("Failed to get block list of prometheus snapshot: " + serr.String())
+		return nil, errors.New("Failed to get block list of prometheus snapshot: " + err.Error())
 	}
 
-	return strings.Fields(sout.String()), nil
+	return directories, nil
 }
 
 type blockMetadata struct {

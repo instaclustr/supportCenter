@@ -19,13 +19,14 @@ const createSnapshotsResponse = `
 	}
 `
 
-const listSnapshotFoldersCommand = "ls -d /var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/*/"
-const listSnapshotFoldersResponse = `
-	/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1/
-	/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CNCYHACHCQPN2ERCGQPP/
-	/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48F42Q6VHY4E8KBK02E7QE2/
-	/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48FKDW67J37AEQ0N2S0ZBCZ/
-`
+const snapshotPath = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f"
+
+var snapshotSubdirectoriesList = []string{
+	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1",
+	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CNCYHACHCQPN2ERCGQPP",
+	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48F42Q6VHY4E8KBK02E7QE2",
+	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48FKDW67J37AEQ0N2S0ZBCZ",
+}
 
 const snapshotMeta1Path = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1/meta.json"
 const snapshotMeta1Content = `
@@ -126,8 +127,8 @@ func TestMetricsCollector_Collect(t *testing.T) {
 		Return(bytes.NewBufferString(createSnapshotsResponse), bytes.NewBufferString(""), nil)
 
 	mockedSSHAgent.
-		On("ExecuteCommand", listSnapshotFoldersCommand).
-		Return(bytes.NewBufferString(listSnapshotFoldersResponse), bytes.NewBufferString(""), nil)
+		On("ListDirectory", snapshotPath).
+		Return(snapshotSubdirectoriesList, nil)
 
 	mockedSSHAgent.
 		On("GetContent", snapshotMeta1Path).
@@ -190,8 +191,8 @@ func TestMetricsCollector_CollectOnCompressionDisabled(t *testing.T) {
 		Return(bytes.NewBufferString(createSnapshotsResponse), bytes.NewBufferString(""), nil)
 
 	mockedSSHAgent.
-		On("ExecuteCommand", listSnapshotFoldersCommand).
-		Return(bytes.NewBufferString(listSnapshotFoldersResponse), bytes.NewBufferString(""), nil)
+		On("ListDirectory", snapshotPath).
+		Return(snapshotSubdirectoriesList, nil)
 
 	mockedSSHAgent.
 		On("GetContent", snapshotMeta1Path).
