@@ -16,7 +16,6 @@ Constants
 const prometheusSnapshotSuccess = "success"
 const prometheusSnapshotFolder = "snapshots"
 const prometheusCreateSnapshotTemplate = "curl -s -XPOST http://localhost:%d/api/v1/admin/tsdb/snapshot"
-const prometheusRemoveResourceTemplate = "rm -rf %s"
 const temporalSnapshotTarballPath = "/tmp/InstaclustrCollection.tar"
 const createSnapshotTarballTemplate = "tar -cf %s -C %s ."
 const getSnapshotBlockListTemplate = "ls -d %s/*/"
@@ -278,8 +277,7 @@ func (collector *MetricsCollector) downloadSnapshot(agent SSHCollectingAgent, sr
 }
 
 func (collector *MetricsCollector) removeResource(agent SSHCollectingAgent, path string) error {
-	_, _, err := agent.ExecuteCommand(fmt.Sprintf(prometheusRemoveResourceTemplate, path))
-
+	err := agent.Remove(path)
 	if err != nil {
 		return errors.New("Failed to remove resource '" + path + "' (" + err.Error() + ")")
 	}

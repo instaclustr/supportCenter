@@ -43,3 +43,8 @@ func (m *mockedSSHAgentObject) ReceiveDir(src, dest string) error {
 	ret := m.Called(src, dest)
 	return ret.Error(0)
 }
+
+func (m *mockedSSHAgentObject) Remove(path string) error {
+	ret := m.Called(path)
+	return ret.Error(0)
+}

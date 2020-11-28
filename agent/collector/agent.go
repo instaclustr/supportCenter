@@ -22,6 +22,7 @@ type SSHCollectingAgent interface {
 
 	ReceiveFile(src, dest string) error
 	ReceiveDir(src, dest string) error
+	Remove(path string) error
 }
 
 type SSHAgent struct {
@@ -132,7 +133,7 @@ func (agent *SSHAgent) ReceiveDir(src, dest string) error {
 	}
 	defer client.Close()
 
-	srcStat, err := client.Lstat(src)
+	srcStat, err := client.Stat(src)
 	if err != nil {
 		return errors.New("SSH agent: Failed receiver source file info over SFTP (" + err.Error() + ")")
 	}
@@ -179,6 +180,62 @@ func (agent *SSHAgent) createDirectoryIfNotExists(dest string) error {
 		err = os.MkdirAll(dest, 0777) // TODO correct permissions for directory
 		if err != nil {
 			return errors.New("SSH agent: Failed to create destination directory (" + err.Error() + ")")
+		}
+	}
+
+	return nil
+}
+
+func (agent *SSHAgent) Remove(path string) error {
+	path = filepath.Clean(path)
+
+	client, err := sftp.NewClient(agent.client)
+	if err != nil {
+		return errors.New("SSH agent: Failed to create SFTP session (" + err.Error() + ")")
+	}
+	defer client.Close()
+
+	stat, err := client.Stat(path)
+	if err != nil {
+		return errors.New("SSH agent: Failed receiver file info over SFTP (" + err.Error() + ")")
+	}
+
+	err = agent.removeRecursive(client, stat, path)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (agent *SSHAgent) removeRecursive(client *sftp.Client, stat os.FileInfo, path string) error {
+
+	if stat.IsDir() {
+		err := agent.removeDir(client, path)
+		if err != nil {
+			return errors.New("SSH agent: Failed to remove '" + path + "' over SFTP (" + err.Error() + ")")
+		}
+	}
+
+	err := client.Remove(path)
+	if err != nil {
+		return errors.New("SSH agent: Failed to remove '" + path + "' over SFTP (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
+func (agent *SSHAgent) removeDir(client *sftp.Client, path string) error {
+
+	dir, err := client.ReadDir(path)
+	if err != nil {
+		return errors.New("SSH agent: Failed to read dir '" + path + "' over SFTP (" + err.Error() + ")")
+	}
+
+	for _, info := range dir {
+		err := agent.removeRecursive(client, info, filepath.Join(path, info.Name()))
+		if err != nil {
+			return err
 		}
 	}
 

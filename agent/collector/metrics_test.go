@@ -112,8 +112,8 @@ const catSnapshotMeta4Response = `
 `
 
 const createTarballCommand = "tar -cf /tmp/InstaclustrCollection.tar -C /var/data/snapshots/20200325T090812Z-78629a0f5f3f164f ."
-const cleanupSnapshotCommand = "rm -rf /var/data/snapshots/20200325T090812Z-78629a0f5f3f164f"
-const cleanupTarballCommand = "rm -rf /tmp/InstaclustrCollection.tar"
+const removeSnapshotPath = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f"
+const removeTarballPath = "/tmp/InstaclustrCollection.tar"
 
 func TestMetricsCollector_Collect(t *testing.T) {
 
@@ -147,8 +147,8 @@ func TestMetricsCollector_Collect(t *testing.T) {
 		Return(bytes.NewBufferString(""), bytes.NewBufferString(""), nil)
 
 	mockedSSHAgent.
-		On("ExecuteCommand", cleanupSnapshotCommand).
-		Return(bytes.NewBufferString(""), bytes.NewBufferString(""), nil)
+		On("Remove", removeSnapshotPath).
+		Return(nil)
 
 	mockedSSHAgent.
 		On("ReceiveDir",
@@ -156,8 +156,8 @@ func TestMetricsCollector_Collect(t *testing.T) {
 		Return(nil)
 
 	mockedSSHAgent.
-		On("ExecuteCommand", cleanupTarballCommand).
-		Return(bytes.NewBufferString(""), bytes.NewBufferString(""), nil)
+		On("Remove", removeTarballPath).
+		Return(nil)
 
 	logger, hook := test.NewNullLogger()
 
@@ -207,8 +207,8 @@ func TestMetricsCollector_CollectOnCompressionDisabled(t *testing.T) {
 		Return(bytes.NewBufferString(catSnapshotMeta4Response), bytes.NewBufferString(""), nil)
 
 	mockedSSHAgent.
-		On("ExecuteCommand", cleanupSnapshotCommand).
-		Return(bytes.NewBufferString(""), bytes.NewBufferString(""), nil)
+		On("Remove", removeSnapshotPath).
+		Return(nil)
 
 	mockedSSHAgent.
 		On("ReceiveDir",
