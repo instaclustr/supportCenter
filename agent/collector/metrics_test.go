@@ -27,8 +27,8 @@ const listSnapshotFoldersResponse = `
 	/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48FKDW67J37AEQ0N2S0ZBCZ/
 `
 
-const catSnapshotMeta1Command = "cat /var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1//meta.json"
-const catSnapshotMeta1Response = `
+const snapshotMeta1Path = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1/meta.json"
+const snapshotMeta1Content = `
 	{
 		"ulid": "01E444CMB0HSK01H0GSRE20NV1",
 		"minTime": 1584957600000,
@@ -48,8 +48,8 @@ const catSnapshotMeta1Response = `
 	}
 `
 
-const catSnapshotMeta2Command = "cat /var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CNCYHACHCQPN2ERCGQPP//meta.json"
-const catSnapshotMeta2Response = `
+const snapshotMeta2Path = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CNCYHACHCQPN2ERCGQPP/meta.json"
+const snapshotMeta2Content = `
 	{
 		"ulid": "01E444CNCYHACHCQPN2ERCGQPP",
 		"minTime": 1584964800000,
@@ -69,8 +69,8 @@ const catSnapshotMeta2Response = `
 	}
 `
 
-const catSnapshotMeta3Command = "cat /var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48F42Q6VHY4E8KBK02E7QE2//meta.json"
-const catSnapshotMeta3Response = `
+const snapshotMeta3Path = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48F42Q6VHY4E8KBK02E7QE2/meta.json"
+const snapshotMeta3Content = `
 	{
 		"ulid": "01E48F42Q6VHY4E8KBK02E7QE2",
 		"minTime": 1584979200000,
@@ -90,8 +90,8 @@ const catSnapshotMeta3Response = `
 	}
 `
 
-const catSnapshotMeta4Command = "cat /var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48FKDW67J37AEQ0N2S0ZBCZ//meta.json"
-const catSnapshotMeta4Response = `
+const snapshotMeta4Path = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48FKDW67J37AEQ0N2S0ZBCZ/meta.json"
+const snapshotMeta4Content = `
 	{
 		"ulid": "01E48H0HDGMZRJD9BDF91VQ01Y",
 		"minTime": 1585123200000,
@@ -130,17 +130,17 @@ func TestMetricsCollector_Collect(t *testing.T) {
 		Return(bytes.NewBufferString(listSnapshotFoldersResponse), bytes.NewBufferString(""), nil)
 
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta1Command).
-		Return(bytes.NewBufferString(catSnapshotMeta1Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta1Path).
+		Return(bytes.NewBufferString(snapshotMeta1Content), nil)
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta2Command).
-		Return(bytes.NewBufferString(catSnapshotMeta2Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta2Path).
+		Return(bytes.NewBufferString(snapshotMeta2Content), nil)
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta3Command).
-		Return(bytes.NewBufferString(catSnapshotMeta3Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta3Path).
+		Return(bytes.NewBufferString(snapshotMeta3Content), nil)
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta4Command).
-		Return(bytes.NewBufferString(catSnapshotMeta4Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta4Path).
+		Return(bytes.NewBufferString(snapshotMeta4Content), nil)
 
 	mockedSSHAgent.
 		On("ExecuteCommand", createTarballCommand).
@@ -194,17 +194,17 @@ func TestMetricsCollector_CollectOnCompressionDisabled(t *testing.T) {
 		Return(bytes.NewBufferString(listSnapshotFoldersResponse), bytes.NewBufferString(""), nil)
 
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta1Command).
-		Return(bytes.NewBufferString(catSnapshotMeta1Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta1Path).
+		Return(bytes.NewBufferString(snapshotMeta1Content), nil)
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta2Command).
-		Return(bytes.NewBufferString(catSnapshotMeta2Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta2Path).
+		Return(bytes.NewBufferString(snapshotMeta2Content), nil)
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta3Command).
-		Return(bytes.NewBufferString(catSnapshotMeta3Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta3Path).
+		Return(bytes.NewBufferString(snapshotMeta3Content), nil)
 	mockedSSHAgent.
-		On("ExecuteCommand", catSnapshotMeta4Command).
-		Return(bytes.NewBufferString(catSnapshotMeta4Response), bytes.NewBufferString(""), nil)
+		On("GetContent", snapshotMeta4Path).
+		Return(bytes.NewBufferString(snapshotMeta4Content), nil)
 
 	mockedSSHAgent.
 		On("Remove", removeSnapshotPath).

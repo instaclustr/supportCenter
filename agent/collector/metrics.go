@@ -19,7 +19,7 @@ const prometheusCreateSnapshotTemplate = "curl -s -XPOST http://localhost:%d/api
 const temporalSnapshotTarballPath = "/tmp/InstaclustrCollection.tar"
 const createSnapshotTarballTemplate = "tar -cf %s -C %s ."
 const getSnapshotBlockListTemplate = "ls -d %s/*/"
-const getSnapshotBlockMetadataTemplate = "cat %s/meta.json"
+const snapshotMetadataFileName = "meta.json"
 
 /*
 Settings
@@ -168,6 +168,7 @@ func (collector *MetricsCollector) createSnapshot(agent SSHCollectingAgent) (str
 }
 
 func (collector *MetricsCollector) lightenSnapshot(agent SSHCollectingAgent, src string) error {
+
 	blocks, err := getBlockList(agent, src)
 	if err != nil {
 		return err
@@ -235,18 +236,14 @@ type blockMetadata struct {
 	}
 }
 
-func getBlockMetadata(agent SSHCollectingAgent, src string) (*blockMetadata, error) {
-	command := fmt.Sprintf(getSnapshotBlockMetadataTemplate, src)
-	sout, serr, err := agent.ExecuteCommand(command)
+func getBlockMetadata(agent SSHCollectingAgent, path string) (*blockMetadata, error) {
+	content, err := agent.GetContent(filepath.Join(path, snapshotMetadataFileName))
 	if err != nil {
-		return nil, err
-	}
-	if serr.Len() > 0 {
-		return nil, errors.New("Failed to get block metadata: " + serr.String())
+		return nil, errors.New("Failed to get block metadata (" + err.Error() + ")")
 	}
 
 	var metadata blockMetadata
-	err = json.Unmarshal(sout.Bytes(), &metadata)
+	err = json.Unmarshal(content.Bytes(), &metadata)
 	if err != nil {
 		return nil, errors.New("Failed to unmarshal block metadata (" + err.Error() + ")")
 	}

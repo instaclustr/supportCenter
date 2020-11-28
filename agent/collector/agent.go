@@ -20,6 +20,7 @@ type SSHCollectingAgent interface {
 	Connect() error
 	ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer, error)
 
+	GetContent(path string) (*bytes.Buffer, error)
 	ReceiveFile(src, dest string) error
 	ReceiveDir(src, dest string) error
 	Remove(path string) error
@@ -73,6 +74,30 @@ func (agent *SSHAgent) ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer,
 	}
 
 	return &outBuffer, &errBuffer, nil
+}
+
+func (agent *SSHAgent) GetContent(path string) (*bytes.Buffer, error) {
+	path = filepath.Clean(path)
+
+	client, err := sftp.NewClient(agent.client)
+	if err != nil {
+		return nil, errors.New("SSH agent: Failed to create SFTP session (" + err.Error() + ")")
+	}
+	defer client.Close()
+
+	file, err := client.Open(path)
+	if err != nil {
+		return nil, errors.New("SSH agent: Failed to open file over SFTP (" + err.Error() + ")")
+	}
+	defer file.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(file)
+	if err != nil {
+		return nil, errors.New("SSH agent: Failed to read file over SFTP (" + err.Error() + ")")
+	}
+
+	return buf, nil
 }
 
 func (agent *SSHAgent) ReceiveFile(src, dest string) error {

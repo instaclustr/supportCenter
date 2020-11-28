@@ -34,6 +34,11 @@ func (m *mockedSSHAgentObject) ExecuteCommand(cmd string) (*bytes.Buffer, *bytes
 	return ret.Get(0).(*bytes.Buffer), ret.Get(1).(*bytes.Buffer), ret.Error(2)
 }
 
+func (m *mockedSSHAgentObject) GetContent(path string) (*bytes.Buffer, error) {
+	ret := m.Called(path)
+	return ret.Get(0).(*bytes.Buffer), ret.Error(1)
+}
+
 func (m *mockedSSHAgentObject) ReceiveFile(src, dest string) error {
 	ret := m.Called(src, dest)
 	return ret.Error(0)
