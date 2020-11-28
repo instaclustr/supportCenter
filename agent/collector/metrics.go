@@ -269,7 +269,7 @@ func (collector *MetricsCollector) tarballSnapshot(agent SSHCollectingAgent, src
 }
 
 func (collector *MetricsCollector) downloadSnapshot(agent SSHCollectingAgent, src string, dest string) error {
-	err := agent.ReceiveDir(src, dest, nil)
+	err := agent.ReceiveDir(src, dest)
 	if err != nil {
 		return errors.New("Failed to receive snapshot (" + err.Error() + ")")
 	}

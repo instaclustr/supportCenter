@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/hnakamur/go-scp"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"io"
+	"os"
+	"path/filepath"
 )
 
 type SSHCollectingAgent interface {
@@ -18,7 +21,7 @@ type SSHCollectingAgent interface {
 	ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer, error)
 
 	ReceiveFile(src, dest string) error
-	ReceiveDir(src, dest string, acceptFn scp.AcceptFunc) error
+	ReceiveDir(src, dest string) error
 }
 
 type SSHAgent struct {
@@ -72,11 +75,112 @@ func (agent *SSHAgent) ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer,
 }
 
 func (agent *SSHAgent) ReceiveFile(src, dest string) error {
-	scpAgent := scp.NewSCP(agent.client)
-	return scpAgent.ReceiveFile(src, dest)
+	src = filepath.Clean(src)
+	dest = filepath.Clean(dest)
+
+	fiDest, err := os.Stat(dest)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.New("SSH agent: Failed to get information of destination file (" + err.Error() + ")")
+	}
+	if err == nil && fiDest.IsDir() {
+		dest = filepath.Join(dest, filepath.Base(src))
+	}
+
+	client, err := sftp.NewClient(agent.client)
+	if err != nil {
+		return errors.New("SSH agent: Failed to create SFTP session (" + err.Error() + ")")
+	}
+	defer client.Close()
+
+	return agent.receiveFile(client, src, dest)
 }
 
-func (agent *SSHAgent) ReceiveDir(src, dest string, acceptFn scp.AcceptFunc) error {
-	scpAgent := scp.NewSCP(agent.client)
-	return scpAgent.ReceiveDir(src, dest, acceptFn)
+func (agent *SSHAgent) receiveFile(client *sftp.Client, src, dest string) error {
+
+	srcFile, err := client.Open(src)
+	if err != nil {
+		return errors.New("SSH agent: Failed to open source file over SFTP (" + err.Error() + ")")
+	}
+	defer srcFile.Close()
+
+	destFile, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return errors.New("SSH agent: Failed to open destination file (" + err.Error() + ")")
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, srcFile)
+	if err != nil {
+		return errors.New("SSH agent: Failed to copy file over SFTP (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
+func (agent *SSHAgent) ReceiveDir(src, dest string) error {
+	src = filepath.Clean(src)
+	dest = filepath.Clean(dest)
+
+	err := agent.createDirectoryIfNotExists(dest)
+	if err != nil {
+		return err
+	}
+
+	client, err := sftp.NewClient(agent.client)
+	if err != nil {
+		return errors.New("SSH agent: Failed to create SFTP session (" + err.Error() + ")")
+	}
+	defer client.Close()
+
+	srcStat, err := client.Lstat(src)
+	if err != nil {
+		return errors.New("SSH agent: Failed receiver source file info over SFTP (" + err.Error() + ")")
+	}
+
+	if !srcStat.IsDir() {
+		return agent.ReceiveFile(src, dest)
+	} else {
+		walker := client.Walk(src)
+		for walker.Step() {
+			if walker.Err() != nil {
+				continue
+			}
+
+			relative, err := filepath.Rel(src, walker.Path())
+			if err != nil {
+				return errors.New("SSH agent: Unexpected error on directory copy (" + err.Error() + ")")
+			}
+
+			if walker.Stat().IsDir() {
+				err := agent.createDirectoryIfNotExists(filepath.Join(dest, relative))
+				if err != nil {
+					return err
+				}
+			} else {
+				err := agent.receiveFile(client, walker.Path(), filepath.Join(dest, relative))
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (agent *SSHAgent) createDirectoryIfNotExists(dest string) error {
+
+	_, err := os.Stat(dest)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.New("SSH agent: Failed to get information of destination directory (" + err.Error() + ")")
+	}
+
+	if os.IsNotExist(err) {
+		err = os.MkdirAll(dest, 0777) // TODO correct permissions for directory
+		if err != nil {
+			return errors.New("SSH agent: Failed to create destination directory (" + err.Error() + ")")
+		}
+	}
+
+	return nil
 }

@@ -195,11 +195,7 @@ func (collector *NodeCollector) collectGCLogFiles(agent SSHCollectingAgent) erro
 
 	src := filepath.Join(collector.Settings.Cassandra.HomePath, cassandraGCLogFolderName)
 
-	err = agent.ReceiveDir(src, dest, func(parentDir string, info os.FileInfo) (b bool, err error) {
-		// TODO generate gc logs
-		collector.log.Info("copy ", parentDir)
-		return true, nil
-	})
+	err = agent.ReceiveDir(src, dest)
 	if err != nil {
 		collector.log.Warn("Failed to receive gc log files (" + err.Error() + ")")
 	}

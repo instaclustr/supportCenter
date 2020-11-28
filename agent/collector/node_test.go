@@ -6,7 +6,6 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"testing"
 )
 
@@ -88,7 +87,7 @@ func TestNodeCollector_Collect(t *testing.T) {
 		Return(nil)
 	mockedSSHAgent.
 		On("ReceiveDir",
-			"/var/lib/cassandra/logs", "some/path/node-test-host-1/gc_logs", mock.AnythingOfType("scp.AcceptFunc")).
+			"/var/lib/cassandra/logs", "some/path/node-test-host-1/gc_logs").
 		Return(nil)
 
 	logger, hook := test.NewNullLogger()

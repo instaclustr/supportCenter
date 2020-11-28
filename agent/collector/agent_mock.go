@@ -2,7 +2,6 @@ package collector
 
 import (
 	"bytes"
-	"github.com/hnakamur/go-scp"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/ssh"
 )
@@ -40,7 +39,7 @@ func (m *mockedSSHAgentObject) ReceiveFile(src, dest string) error {
 	return ret.Error(0)
 }
 
-func (m *mockedSSHAgentObject) ReceiveDir(src, dest string, acceptFn scp.AcceptFunc) error {
-	ret := m.Called(src, dest, acceptFn)
+func (m *mockedSSHAgentObject) ReceiveDir(src, dest string) error {
+	ret := m.Called(src, dest)
 	return ret.Error(0)
 }
