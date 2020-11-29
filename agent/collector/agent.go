@@ -2,14 +2,20 @@ package collector
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"github.com/machinebox/progress"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 )
+
+type ProgressFunc func(copied int64, size int64, remaining time.Duration)
 
 type SSHCollectingAgent interface {
 	SetTarget(host string, port int)
@@ -22,8 +28,8 @@ type SSHCollectingAgent interface {
 
 	GetContent(path string) (*bytes.Buffer, error)
 	ListDirectory(path string) ([]string, error)
-	ReceiveFile(src, dest string) error
-	ReceiveDir(src, dest string) error
+	ReceiveFile(src, dest string, progressFn ProgressFunc) error
+	ReceiveDir(src, dest string, progressFn ProgressFunc) error
 	Remove(path string) error
 }
 
@@ -125,17 +131,9 @@ func (agent *SSHAgent) ListDirectory(path string) ([]string, error) {
 	return directories, nil
 }
 
-func (agent *SSHAgent) ReceiveFile(src, dest string) error {
+func (agent *SSHAgent) ReceiveFile(src, dest string, progressFn ProgressFunc) error {
 	src = filepath.Clean(src)
 	dest = filepath.Clean(dest)
-
-	fiDest, err := os.Stat(dest)
-	if err != nil && !os.IsNotExist(err) {
-		return errors.New("SSH agent: Failed to get information of destination file (" + err.Error() + ")")
-	}
-	if err == nil && fiDest.IsDir() {
-		dest = filepath.Join(dest, filepath.Base(src))
-	}
 
 	client, err := sftp.NewClient(agent.client)
 	if err != nil {
@@ -143,10 +141,18 @@ func (agent *SSHAgent) ReceiveFile(src, dest string) error {
 	}
 	defer client.Close()
 
-	return agent.receiveFile(client, src, dest)
+	return agent.receiveFile(client, src, dest, progressFn)
 }
 
-func (agent *SSHAgent) receiveFile(client *sftp.Client, src, dest string) error {
+func (agent *SSHAgent) receiveFile(client *sftp.Client, src, dest string, progressFn ProgressFunc) error {
+
+	destStat, err := os.Stat(dest)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.New("SSH agent: Failed to get information of destination file (" + err.Error() + ")")
+	}
+	if err == nil && destStat.IsDir() {
+		dest = filepath.Join(dest, filepath.Base(src))
+	}
 
 	srcFile, err := client.Open(src)
 	if err != nil {
@@ -154,13 +160,38 @@ func (agent *SSHAgent) receiveFile(client *sftp.Client, src, dest string) error 
 	}
 	defer srcFile.Close()
 
+	var srcReader io.Reader
+	srcReader = srcFile
+
+	if progressFn != nil {
+		srcStat, err := srcFile.Stat()
+		if err != nil {
+			return errors.New("SSH agent: Failed to open source file stat over SFTP (" + err.Error() + ")")
+		}
+
+		sourceFileSize := srcStat.Size()
+
+		progressReader := progress.NewReader(srcFile)
+		srcReader = progressReader
+
+		go func() {
+			ctx := context.Background()
+
+			progressChan := progress.NewTicker(ctx, progressReader, sourceFileSize, 1*time.Second)
+
+			for p := range progressChan {
+				progressFn(p.N(), p.Size(), p.Remaining())
+			}
+		}()
+	}
+
 	destFile, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return errors.New("SSH agent: Failed to open destination file (" + err.Error() + ")")
 	}
 	defer destFile.Close()
 
-	_, err = io.Copy(destFile, srcFile)
+	_, err = io.Copy(destFile, srcReader)
 	if err != nil {
 		return errors.New("SSH agent: Failed to copy file over SFTP (" + err.Error() + ")")
 	}
@@ -168,7 +199,7 @@ func (agent *SSHAgent) receiveFile(client *sftp.Client, src, dest string) error 
 	return nil
 }
 
-func (agent *SSHAgent) ReceiveDir(src, dest string) error {
+func (agent *SSHAgent) ReceiveDir(src, dest string, progressFn ProgressFunc) error {
 	src = filepath.Clean(src)
 	dest = filepath.Clean(dest)
 
@@ -189,8 +220,24 @@ func (agent *SSHAgent) ReceiveDir(src, dest string) error {
 	}
 
 	if !srcStat.IsDir() {
-		return agent.ReceiveFile(src, dest)
+		return agent.receiveFile(client, src, dest, progressFn)
 	} else {
+		dirSize := agent.getDirSize(client, src)
+
+		counter := &counter{}
+
+		if progressFn != nil {
+			go func() {
+				ctx := context.Background()
+
+				progressChan := progress.NewTicker(ctx, counter, dirSize, 1*time.Second)
+
+				for p := range progressChan {
+					progressFn(p.N(), p.Size(), p.Remaining())
+				}
+			}()
+		}
+
 		walker := client.Walk(src)
 		for walker.Step() {
 			if walker.Err() != nil {
@@ -208,15 +255,61 @@ func (agent *SSHAgent) ReceiveDir(src, dest string) error {
 					return err
 				}
 			} else {
-				err := agent.receiveFile(client, walker.Path(), filepath.Join(dest, relative))
+				err := agent.receiveFile(client, walker.Path(), filepath.Join(dest, relative), nil)
 				if err != nil {
 					return err
 				}
+
+				counter.Inc(walker.Stat().Size())
 			}
 		}
 	}
 
 	return nil
+}
+
+func (agent *SSHAgent) getDirSize(client *sftp.Client, path string) int64 {
+	var size int64 = 0
+	walker := client.Walk(path)
+	for walker.Step() {
+		if walker.Err() != nil {
+			continue
+		}
+
+		if !walker.Stat().IsDir() {
+			size += walker.Stat().Size()
+		}
+	}
+
+	return size
+}
+
+type counter struct {
+	lock sync.RWMutex
+	n    int64
+	err  error
+}
+
+func (c *counter) Inc(size int64) {
+	c.lock.Lock()
+	c.n += size
+	c.lock.Unlock()
+}
+
+func (c *counter) N() int64 {
+	var n int64
+	c.lock.RLock()
+	n = c.n
+	c.lock.RUnlock()
+	return n
+}
+
+func (c *counter) Err() error {
+	var err error
+	c.lock.RLock()
+	err = c.err
+	c.lock.RUnlock()
+	return err
 }
 
 func (agent *SSHAgent) createDirectoryIfNotExists(dest string) error {

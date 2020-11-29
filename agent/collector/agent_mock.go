@@ -44,13 +44,13 @@ func (m *mockedSSHAgentObject) ListDirectory(path string) ([]string, error) {
 	return ret.Get(0).([]string), ret.Error(1)
 }
 
-func (m *mockedSSHAgentObject) ReceiveFile(src, dest string) error {
-	ret := m.Called(src, dest)
+func (m *mockedSSHAgentObject) ReceiveFile(src, dest string, progressFn ProgressFunc) error {
+	ret := m.Called(src, dest, progressFn)
 	return ret.Error(0)
 }
 
-func (m *mockedSSHAgentObject) ReceiveDir(src, dest string) error {
-	ret := m.Called(src, dest)
+func (m *mockedSSHAgentObject) ReceiveDir(src, dest string, progressFn ProgressFunc) error {
+	ret := m.Called(src, dest, progressFn)
 	return ret.Error(0)
 }
 

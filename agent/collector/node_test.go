@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"testing"
 )
 
@@ -67,27 +68,27 @@ func TestNodeCollector_Collect(t *testing.T) {
 
 	mockedSSHAgent.
 		On("ReceiveFile",
-			"/etc/cassandra/cassandra.yaml", "some/path/node-test-host-1/config").
+			"/etc/cassandra/cassandra.yaml", "some/path/node-test-host-1/config", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 	mockedSSHAgent.
 		On("ReceiveFile",
-			"/etc/cassandra/cassandra-env.sh", "some/path/node-test-host-1/config").
+			"/etc/cassandra/cassandra-env.sh", "some/path/node-test-host-1/config", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 	mockedSSHAgent.
 		On("ReceiveFile",
-			"/etc/cassandra/jvm.options", "some/path/node-test-host-1/config").
+			"/etc/cassandra/jvm.options", "some/path/node-test-host-1/config", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 	mockedSSHAgent.
 		On("ReceiveFile",
-			"/etc/cassandra/logback.xml", "some/path/node-test-host-1/config").
+			"/etc/cassandra/logback.xml", "some/path/node-test-host-1/config", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 	mockedSSHAgent.
 		On("ReceiveFile",
-			"/var/log/cassandra/system.log", "some/path/node-test-host-1/logs").
+			"/var/log/cassandra/system.log", "some/path/node-test-host-1/logs", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 	mockedSSHAgent.
 		On("ReceiveDir",
-			"/var/lib/cassandra/logs", "some/path/node-test-host-1/gc_logs").
+			"/var/lib/cassandra/logs", "some/path/node-test-host-1/gc_logs", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 
 	logger, hook := test.NewNullLogger()

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 /*
@@ -161,7 +162,7 @@ func (collector *NodeCollector) collectConfigurationFiles(agent SSHCollectingAge
 
 	for _, name := range collector.Settings.Collecting.Configs {
 		src := filepath.Join(collector.Settings.Cassandra.ConfigPath, name)
-		err = agent.ReceiveFile(src, dest)
+		err = agent.ReceiveFile(src, dest, nil)
 		if err != nil {
 			collector.log.Warn("Failed to receive config file '" + src + "' (" + err.Error() + ")")
 		}
@@ -178,7 +179,11 @@ func (collector *NodeCollector) collectLogFiles(agent SSHCollectingAgent) error 
 
 	for _, name := range collector.Settings.Collecting.Logs {
 		src := filepath.Join(collector.Settings.Cassandra.LogPath, name)
-		err = agent.ReceiveFile(src, dest)
+		err = agent.ReceiveFile(src, dest, func(copied int64, size int64, remaining time.Duration) {
+			collector.log.Info("Downloading '", name, "' log file ",
+				HumanSize(float64(copied)), " of ", HumanSize(float64(size)),
+				" (remaining ", remaining.Round(time.Second), ") ...")
+		})
 		if err != nil {
 			collector.log.Warn("Failed to receive log file '" + src + "' (" + err.Error() + ")")
 		}
@@ -195,7 +200,7 @@ func (collector *NodeCollector) collectGCLogFiles(agent SSHCollectingAgent) erro
 
 	src := filepath.Join(collector.Settings.Cassandra.HomePath, cassandraGCLogFolderName)
 
-	err = agent.ReceiveDir(src, dest)
+	err = agent.ReceiveDir(src, dest, nil)
 	if err != nil {
 		collector.log.Warn("Failed to receive gc log files (" + err.Error() + ")")
 	}

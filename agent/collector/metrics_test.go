@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
 )
@@ -153,7 +154,7 @@ func TestMetricsCollector_Collect(t *testing.T) {
 
 	mockedSSHAgent.
 		On("ReceiveDir",
-			"/tmp/InstaclustrCollection.tar", "/some/metrics/path/snapshot").
+			"/tmp/InstaclustrCollection.tar", "/some/metrics/path/snapshot", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 
 	mockedSSHAgent.
@@ -213,7 +214,7 @@ func TestMetricsCollector_CollectOnCompressionDisabled(t *testing.T) {
 
 	mockedSSHAgent.
 		On("ReceiveDir",
-			"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f", "/some/metrics/path/snapshot").
+			"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f", "/some/metrics/path/snapshot", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 
 	logger, hook := test.NewNullLogger()

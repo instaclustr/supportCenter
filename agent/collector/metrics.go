@@ -52,12 +52,15 @@ type MetricsCollector struct {
 
 	TimestampFrom time.Time
 	TimestampTo   time.Time
+
+	log *logrus.Entry
 }
 
 func (collector *MetricsCollector) Collect(agent SSHCollectingAgent) error {
 	log := collector.Logger.WithFields(logrus.Fields{
 		"prefix": "MC " + agent.GetHost(),
 	})
+	collector.log = log
 	log.Info("Metrics collecting started")
 
 	err := agent.Connect()
@@ -260,7 +263,10 @@ func (collector *MetricsCollector) tarballSnapshot(agent SSHCollectingAgent, src
 }
 
 func (collector *MetricsCollector) downloadSnapshot(agent SSHCollectingAgent, src string, dest string) error {
-	err := agent.ReceiveDir(src, dest)
+	err := agent.ReceiveDir(src, dest, func(copied int64, size int64, remaining time.Duration) {
+		collector.log.Info("Downloading snapshot ", HumanSize(float64(copied)), " of ", HumanSize(float64(size)),
+			" (remaining ", remaining.Round(time.Second), ") ...")
+	})
 	if err != nil {
 		return errors.New("Failed to receive snapshot (" + err.Error() + ")")
 	}

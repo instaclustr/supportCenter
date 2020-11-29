@@ -3,6 +3,7 @@ module agent
 go 1.13
 
 require (
+	github.com/machinebox/progress v0.2.0
 	github.com/mattn/go-colorable v0.1.8
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/onsi/ginkgo v1.11.0 // indirect
