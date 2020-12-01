@@ -93,7 +93,7 @@ func (collector *NodeCollector) Collect(agent SSHCollectingAgent) error {
 		return err
 	}
 
-	InfoTaskCount := 3
+	InfoTaskCount := 4
 	var wg sync.WaitGroup
 	wg.Add(InfoTaskCount)
 
@@ -129,6 +129,17 @@ func (collector *NodeCollector) Collect(agent SSHCollectingAgent) error {
 			log.Error(err)
 		}
 		log.Info("Collecting disc info completed.")
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		log.Info("Collecting system info...")
+		err = collector.collectSystemInfo(agent)
+		if err != nil {
+			log.Error(err)
+		}
+		log.Info("Collecting system info completed.")
 	}()
 
 	log.Info("Collecting configuration files...")
@@ -325,6 +336,35 @@ func (collector *NodeCollector) collectDiscInfo(agent SSHCollectingAgent) error 
 	err = afero.WriteFile(collector.AppFs, filepath.Join(path, "disk.info"), report.Bytes(), os.ModePerm)
 	if err != nil {
 		return errors.New("Failed to save disk info (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
+func (collector *NodeCollector) collectSystemInfo(agent SSHCollectingAgent) error {
+	commands := [...]string{
+		"ulimit -a",
+		"free -m",
+	}
+
+	path, err := collector.makeFolder(agent.GetHost(), "info")
+	if err != nil {
+		return err
+	}
+
+	for _, command := range commands {
+		sout, _, err := agent.ExecuteCommand(command)
+		if err != nil {
+			collector.log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
+			continue
+		}
+
+		fileName := strings.ReplaceAll(command, " ", "_") + ".info"
+		err = afero.WriteFile(collector.AppFs, filepath.Join(path, fileName), sout.Bytes(), os.ModePerm)
+		if err != nil {
+			collector.log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
+			continue
+		}
 	}
 
 	return nil

@@ -24,6 +24,9 @@ const collectIOStatsCommand = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 <
 const collectDiscInfo1Command = "df -h /var/lib/cassandra/data"
 const collectDiscInfo2Command = "du -h /var/lib/cassandra/data"
 
+const collectSystemInfoFreeCommand = "free -m"
+const collectSystemInfoUlimitCommand = "ulimit -a"
+
 var gcLogs = []FileInfo{
 	{"/var/log/cassandra/system.log", false},
 	{"/var/log/cassandra/gc.log.2", false},
@@ -72,6 +75,13 @@ func TestNodeCollector_Collect(t *testing.T) {
 		Return(bytes.NewBufferString("some data"), bytes.NewBufferString(""), nil)
 	mockedSSHAgent.
 		On("ExecuteCommand", collectDiscInfo2Command).
+		Return(bytes.NewBufferString("some data"), bytes.NewBufferString(""), nil)
+
+	mockedSSHAgent.
+		On("ExecuteCommand", collectSystemInfoFreeCommand).
+		Return(bytes.NewBufferString("some data"), bytes.NewBufferString(""), nil)
+	mockedSSHAgent.
+		On("ExecuteCommand", collectSystemInfoUlimitCommand).
 		Return(bytes.NewBufferString("some data"), bytes.NewBufferString(""), nil)
 
 	mockedSSHAgent.
