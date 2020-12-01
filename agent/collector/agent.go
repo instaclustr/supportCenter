@@ -17,6 +17,11 @@ import (
 
 type ProgressFunc func(copied int64, size int64, remaining time.Duration)
 
+type FileInfo struct {
+	Path  string
+	IdDir bool
+}
+
 type SSHCollectingAgent interface {
 	SetTarget(host string, port int)
 	SetConfig(config *ssh.ClientConfig)
@@ -27,7 +32,7 @@ type SSHCollectingAgent interface {
 	ExecuteCommand(cmd string) (*bytes.Buffer, *bytes.Buffer, error)
 
 	GetContent(path string) (*bytes.Buffer, error)
-	ListDirectory(path string) ([]string, error)
+	ListDirectory(path string) ([]FileInfo, error)
 	ReceiveFile(src, dest string, progressFn ProgressFunc) error
 	ReceiveDir(src, dest string, progressFn ProgressFunc) error
 	Remove(path string) error
@@ -107,7 +112,7 @@ func (agent *SSHAgent) GetContent(path string) (*bytes.Buffer, error) {
 	return buf, nil
 }
 
-func (agent *SSHAgent) ListDirectory(path string) ([]string, error) {
+func (agent *SSHAgent) ListDirectory(path string) ([]FileInfo, error) {
 	path = filepath.Clean(path)
 
 	client, err := sftp.NewClient(agent.client)
@@ -121,14 +126,13 @@ func (agent *SSHAgent) ListDirectory(path string) ([]string, error) {
 		return nil, errors.New("SSH agent: Failed to read directory over SFTP (" + err.Error() + ")")
 	}
 
-	directories := make([]string, 0)
+	infos := make([]FileInfo, 0)
 	for _, info := range dir {
-		if info.IsDir() {
-			directories = append(directories, filepath.Join(path, info.Name()))
-		}
+		path := filepath.Join(path, info.Name())
+		infos = append(infos, FileInfo{path, info.IsDir()})
 	}
 
-	return directories, nil
+	return infos, nil
 }
 
 func (agent *SSHAgent) ReceiveFile(src, dest string, progressFn ProgressFunc) error {

@@ -46,7 +46,7 @@ node:
   cassandra:
     config-path: "/etc/cassandra"
     log-path: "/var/log/cassandra"
-    home-path: "/var/lib/cassandra"
+    gc-path:  "/var/log/cassandra"
     data-path:
       - "/var/lib/cassandra/data"
   collecting:
@@ -57,6 +57,8 @@ node:
       - "logback.xml"
     logs:
       - "system.log"
+    gc-log-patterns:
+      - "gc*"
 metrics:
   prometheus:
     port: 9090
@@ -70,6 +72,16 @@ target:
   metrics:
     - 'metrics.example.com'
 ```
+
+### Settings
+* **node.cassandra.config-path** - path for cassandra configuration files
+* **node.collecting.configs** - list of configuration files to be collected
+* **node.cassandra.log-path** - path for cassandra log files
+* **node.collecting.logs** - list of log files to be collected
+* **node.cassandra.gc-path** - path for cassandra garbage collector log files
+* **node.collecting.gc-log-patterns** - list of patterns that will be used to select files from the garbage collector directory (See [Pattern](https://golang.org/pkg/path/filepath/#Match))
+* **node.cassandra.data-path** - List of directories where the DiscInfo test will be performed
+
 ## Cassandra deployment requirements
 This collection agent depends on having a properly configured and running Prometheus metrics server running and collecting metrics from your Cassandra cluster in combination with the cassandra-exporter. For instructions on setting up cassandra-exporter with Cassandra, please see the [cassandra-exporter setup docs](https://github.com/instaclustr/cassandra-exporter#usage).
 

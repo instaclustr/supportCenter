@@ -24,6 +24,14 @@ const collectIOStatsCommand = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 <
 const collectDiscInfo1Command = "df -h /var/lib/cassandra/data"
 const collectDiscInfo2Command = "du -h /var/lib/cassandra/data"
 
+var gcLogs = []FileInfo{
+	{"/var/log/cassandra/system.log", false},
+	{"/var/log/cassandra/gc.log.2", false},
+	{"/var/log/cassandra/gc.log.0", false},
+	{"/var/log/cassandra/gc.log.3.current", false},
+	{"/var/log/cassandra/gc.log.1", false},
+}
+
 func TestNodeCollector_Collect(t *testing.T) {
 
 	mockedSSHAgent := new(mockedSSHAgentObject)
@@ -86,9 +94,25 @@ func TestNodeCollector_Collect(t *testing.T) {
 		On("ReceiveFile",
 			"/var/log/cassandra/system.log", "some/path/node-test-host-1/logs", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
+
 	mockedSSHAgent.
-		On("ReceiveDir",
-			"/var/lib/cassandra/logs", "some/path/node-test-host-1/gc_logs", mock.AnythingOfType("collector.ProgressFunc")).
+		On("ListDirectory", "/var/log/cassandra").
+		Return(gcLogs, nil)
+	mockedSSHAgent.
+		On("ReceiveFile",
+			"/var/log/cassandra/gc.log.2", "some/path/node-test-host-1/gc_logs", mock.AnythingOfType("collector.ProgressFunc")).
+		Return(nil)
+	mockedSSHAgent.
+		On("ReceiveFile",
+			"/var/log/cassandra/gc.log.0", "some/path/node-test-host-1/gc_logs", mock.AnythingOfType("collector.ProgressFunc")).
+		Return(nil)
+	mockedSSHAgent.
+		On("ReceiveFile",
+			"/var/log/cassandra/gc.log.3.current", "some/path/node-test-host-1/gc_logs", mock.AnythingOfType("collector.ProgressFunc")).
+		Return(nil)
+	mockedSSHAgent.
+		On("ReceiveFile",
+			"/var/log/cassandra/gc.log.1", "some/path/node-test-host-1/gc_logs", mock.AnythingOfType("collector.ProgressFunc")).
 		Return(nil)
 
 	logger, hook := test.NewNullLogger()

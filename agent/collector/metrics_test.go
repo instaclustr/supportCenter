@@ -22,11 +22,11 @@ const createSnapshotsResponse = `
 
 const snapshotPath = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f"
 
-var snapshotSubdirectoriesList = []string{
-	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1",
-	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CNCYHACHCQPN2ERCGQPP",
-	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48F42Q6VHY4E8KBK02E7QE2",
-	"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48FKDW67J37AEQ0N2S0ZBCZ",
+var snapshotSubdirectoriesList = []FileInfo{
+	{"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1", true},
+	{"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CNCYHACHCQPN2ERCGQPP", true},
+	{"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48F42Q6VHY4E8KBK02E7QE2", true},
+	{"/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E48FKDW67J37AEQ0N2S0ZBCZ", true},
 }
 
 const snapshotMeta1Path = "/var/data/snapshots/20200325T090812Z-78629a0f5f3f164f/01E444CMB0HSK01H0GSRE20NV1/meta.json"

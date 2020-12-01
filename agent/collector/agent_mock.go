@@ -39,9 +39,9 @@ func (m *mockedSSHAgentObject) GetContent(path string) (*bytes.Buffer, error) {
 	return ret.Get(0).(*bytes.Buffer), ret.Error(1)
 }
 
-func (m *mockedSSHAgentObject) ListDirectory(path string) ([]string, error) {
+func (m *mockedSSHAgentObject) ListDirectory(path string) ([]FileInfo, error) {
 	ret := m.Called(path)
-	return ret.Get(0).([]string), ret.Error(1)
+	return ret.Get(0).([]FileInfo), ret.Error(1)
 }
 
 func (m *mockedSSHAgentObject) ReceiveFile(src, dest string, progressFn ProgressFunc) error {

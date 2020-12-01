@@ -29,13 +29,14 @@ type NodeCollectorSettings struct {
 type CassandraSettings struct {
 	ConfigPath string   `yaml:"config-path"`
 	LogPath    string   `yaml:"log-path"`
-	HomePath   string   `yaml:"home-path"`
+	GCPath     string   `yaml:"gc-path"`
 	DataPath   []string `yaml:"data-path"`
 }
 
 type CollectingSettings struct {
-	Configs []string `yaml:"configs"`
-	Logs    []string `yaml:"logs"`
+	Configs       []string `yaml:"configs"`
+	Logs          []string `yaml:"logs"`
+	GCLogPatterns []string `yaml:"gc-log-patterns"`
 }
 
 func NodeCollectorDefaultSettings() *NodeCollectorSettings {
@@ -43,7 +44,7 @@ func NodeCollectorDefaultSettings() *NodeCollectorSettings {
 		Cassandra: CassandraSettings{
 			ConfigPath: "/etc/cassandra",
 			LogPath:    "/var/log/cassandra",
-			HomePath:   "/var/lib/cassandra",
+			GCPath:     "/var/log/cassandra",
 			DataPath: []string{
 				"/var/lib/cassandra/data",
 			},
@@ -57,6 +58,9 @@ func NodeCollectorDefaultSettings() *NodeCollectorSettings {
 			},
 			Logs: []string{
 				"system.log",
+			},
+			GCLogPatterns: []string{
+				"gc*",
 			},
 		},
 	}
@@ -198,11 +202,35 @@ func (collector *NodeCollector) collectGCLogFiles(agent SSHCollectingAgent) erro
 		return err
 	}
 
-	src := filepath.Join(collector.Settings.Cassandra.HomePath, cassandraGCLogFolderName)
-
-	err = agent.ReceiveDir(src, dest, nil)
+	entries, err := agent.ListDirectory(collector.Settings.Cassandra.GCPath)
 	if err != nil {
-		collector.log.Warn("Failed to receive gc log files (" + err.Error() + ")")
+		return errors.New("Failed to check GC log directory (" + err.Error() + ")")
+	}
+
+	for _, entry := range entries {
+		if entry.IdDir {
+			continue
+		}
+
+		for _, pattern := range collector.Settings.Collecting.GCLogPatterns {
+			filename := filepath.Base(entry.Path)
+			match, err := filepath.Match(pattern, filename)
+			if err != nil {
+				collector.log.Warn("Failed to check GC log '" + entry.Path + " pattern  '" + pattern +
+					"' matching ' (" + err.Error() + ")")
+			}
+
+			if match == true {
+				err := agent.ReceiveFile(entry.Path, dest, func(copied int64, size int64, remaining time.Duration) {
+					collector.log.Info("Downloading '", filename, "' GC log file ",
+						HumanSize(float64(copied)), " of ", HumanSize(float64(size)),
+						" (remaining ", remaining.Round(time.Second), ") ...")
+				})
+				if err != nil {
+					collector.log.Warn("Failed to receive GC log file (" + err.Error() + ")")
+				}
+			}
+		}
 	}
 
 	return nil

@@ -214,9 +214,16 @@ func (collector *MetricsCollector) lightenSnapshot(agent SSHCollectingAgent, src
 
 func getBlockList(agent SSHCollectingAgent, src string) ([]string, error) {
 
-	directories, err := agent.ListDirectory(src)
+	entries, err := agent.ListDirectory(src)
 	if err != nil {
 		return nil, errors.New("Failed to get block list of prometheus snapshot: " + err.Error())
+	}
+
+	directories := make([]string, 0)
+	for _, entry := range entries {
+		if entry.IdDir {
+			directories = append(directories, entry.Path)
+		}
 	}
 
 	return directories, nil
