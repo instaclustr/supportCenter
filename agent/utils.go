@@ -26,9 +26,53 @@ func (arr *StringList) Set(value string) error {
 	return nil
 }
 
+func initCommandLineParameters() {
+	setupApplicationUsagePrinting()
+
+	flag.Parse()
+	parseAndValidateCommandLineArguments()
+}
+
+func setupApplicationUsagePrinting() {
+	flag.Usage = func() {
+		flagSet := flag.CommandLine
+
+		fmt.Fprint(flagSet.Output(), "\n[Required parameters to be provided]\n")
+		requiredParameters := []string{"l"}
+		flagSet.VisitAll(func(flag *flag.Flag) {
+			if Contains(requiredParameters, flag.Name) == true {
+				printParameterUsage(flag)
+			}
+		})
+
+		fmt.Fprint(flagSet.Output(), "\n[Optional parameters to be provided]\n")
+		flagSet.VisitAll(func(flag *flag.Flag) {
+			if Contains(requiredParameters, flag.Name) != true {
+				printParameterUsage(flag)
+			}
+		})
+	}
+}
+
+func printParameterUsage(parameter *flag.Flag) {
+	s := fmt.Sprintf("  -%s", parameter.Name)
+	name, usage := flag.UnquoteUsage(parameter)
+	if len(name) > 0 {
+		s += " " + name
+	}
+	if len(s) <= 4 {
+		s += "\t"
+	} else {
+		s += "\n    \t"
+	}
+	s += strings.ReplaceAll(usage, "\n", "\n    \t")
+
+	fmt.Fprintf(flag.CommandLine.Output(), "%s\n", s)
+}
+
 func parseAndValidateCommandLineArguments() {
 	if *user == "" {
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
@@ -37,7 +81,7 @@ func parseAndValidateCommandLineArguments() {
 		if err != nil {
 			log.Error("Failed to parse 'from' datetime (", *mcTimeRangeFrom, "):  ", err.Error())
 
-			flag.PrintDefaults()
+			flag.Usage()
 			os.Exit(1)
 		}
 		mcTimestampFrom = timestamp
@@ -48,7 +92,7 @@ func parseAndValidateCommandLineArguments() {
 		if err != nil {
 			log.Error("Failed to parse 'to' datetime: (", *mcTimeRangeFrom, "): ", err.Error())
 
-			flag.PrintDefaults()
+			flag.Usage()
 			os.Exit(1)
 		}
 		mcTimestampTo = timestamp
@@ -57,7 +101,7 @@ func parseAndValidateCommandLineArguments() {
 	if mcTimestampFrom.After(mcTimestampTo) {
 		log.Error("Incorrect metrics collecting time span ", mcTimestampFrom.UTC(), " after ", mcTimestampTo.UTC())
 
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 }
@@ -131,4 +175,13 @@ func joinToSet(items []string, set map[string]bool, values []string) []string {
 		}
 	}
 	return values
+}
+
+func Contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
 }

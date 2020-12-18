@@ -70,8 +70,7 @@ func main() {
 
 	log.Info("Instaclustr Agent")
 
-	flag.Parse()
-	parseAndValidateCommandLineArguments()
+	initCommandLineParameters()
 
 	// Settings
 	settings := &Settings{
