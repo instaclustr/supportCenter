@@ -1,0 +1,6 @@
+
+*.zip
+*.gz
+agent/agent_windows_amd64
+agent/agent_linux_amd64
+agent/agent_darwin_amd64
