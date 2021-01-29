@@ -31,6 +31,8 @@ type CassandraSettings struct {
 	LogPath    string   `yaml:"log-path"`
 	GCPath     string   `yaml:"gc-path"`
 	DataPath   []string `yaml:"data-path"`
+	Username   string   `yaml:"username"`
+	Password   string   `yaml:"password"`
 }
 
 type CollectingSettings struct {
@@ -48,6 +50,8 @@ func NodeCollectorDefaultSettings() *NodeCollectorSettings {
 			DataPath: []string{
 				"/var/lib/cassandra/data",
 			},
+			Username: "",
+			Password: "",
 		},
 		Collecting: CollectingSettings{
 			Configs: []string{
@@ -249,14 +253,14 @@ func (collector *NodeCollector) collectGCLogFiles(agent SSHCollectingAgent) erro
 
 func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) error {
 	commands := [...]string{
-		"nodetool info",
-		"nodetool version",
-		"nodetool status",
-		"nodetool tpstats",
-		"nodetool compactionstats -H",
-		"nodetool gossipinfo",
-		"nodetool cfstats -H",
-		"nodetool ring",
+		"info",
+		"version",
+		"status",
+		"tpstats",
+		"compactionstats -H",
+		"gossipinfo",
+		"cfstats -H",
+		"ring",
 	}
 
 	path, err := collector.makeFolder(agent.GetHost(), "info")
@@ -265,7 +269,16 @@ func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) er
 	}
 
 	for _, command := range commands {
-		sout, _, err := agent.ExecuteCommand(command)
+		var args = strings.Builder{}
+		args.WriteString("nodetool ")
+		if len(collector.Settings.Cassandra.Username) > 0 {
+			fmt.Fprintf(&args, "-u '%s' ", collector.Settings.Cassandra.Username)
+		}
+		if len(collector.Settings.Cassandra.Password) > 0 {
+			fmt.Fprintf(&args, "-pw '%s' ", collector.Settings.Cassandra.Password)
+		}
+		args.WriteString(command)
+		sout, _, err := agent.ExecuteCommand(args.String())
 		if err != nil {
 			collector.log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
 			continue
