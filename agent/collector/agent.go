@@ -136,7 +136,7 @@ func (agent *SSHAgent) ListDirectory(path string) ([]FileInfo, error) {
 }
 
 func (agent *SSHAgent) ReceiveFile(src, dest string, progressFn ProgressFunc) error {
-	src = filepath.Clean(src)
+	src = filepath.ToSlash(filepath.Clean(src))
 	dest = filepath.Clean(dest)
 
 	client, err := sftp.NewClient(agent.client)
