@@ -35,10 +35,20 @@ type CassandraSettings struct {
 	Password   string   `yaml:"password"`
 }
 
+type CommandWrapperSettings struct {
+	Common   string `yaml:"common"`
+	Nodetool string `yaml:"nodetool"`
+}
+
+type InfoSettings struct {
+	CommandWrapper CommandWrapperSettings `yaml:"command-wrapper"`
+}
+
 type CollectingSettings struct {
-	Configs       []string `yaml:"configs"`
-	Logs          []string `yaml:"logs"`
-	GCLogPatterns []string `yaml:"gc-log-patterns"`
+	Configs       []string     `yaml:"configs"`
+	Logs          []string     `yaml:"logs"`
+	GCLogPatterns []string     `yaml:"gc-log-patterns"`
+	Info          InfoSettings `yaml:"info"`
 }
 
 func NodeCollectorDefaultSettings() *NodeCollectorSettings {
@@ -65,6 +75,12 @@ func NodeCollectorDefaultSettings() *NodeCollectorSettings {
 			},
 			GCLogPatterns: []string{
 				"gc*",
+			},
+			Info: InfoSettings{
+				CommandWrapper: CommandWrapperSettings{
+					Common:   "",
+					Nodetool: "",
+				},
 			},
 		},
 	}
@@ -270,6 +286,9 @@ func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) er
 
 	for _, command := range commands {
 		var args = strings.Builder{}
+		if len(collector.Settings.Collecting.Info.CommandWrapper.Nodetool) > 0 {
+			fmt.Fprintf(&args, "%s ", collector.Settings.Collecting.Info.CommandWrapper.Nodetool)
+		}
 		args.WriteString("nodetool ")
 		if len(collector.Settings.Cassandra.Username) > 0 {
 			fmt.Fprintf(&args, "-u '%s' ", collector.Settings.Cassandra.Username)
@@ -296,14 +315,18 @@ func (collector *NodeCollector) collectNodeToolInfo(agent SSHCollectingAgent) er
 }
 
 func (collector *NodeCollector) collectIOStats(agent SSHCollectingAgent) error {
-	const command = "eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null"
+	var command = strings.Builder{}
+	if len(collector.Settings.Collecting.Info.CommandWrapper.Common) > 0 {
+		fmt.Fprintf(&command, "%s ", collector.Settings.Collecting.Info.CommandWrapper.Common)
+	}
+	command.WriteString("eval timeout -sHUP 60s iostat -x -m -t -y -z 30 < /dev/null")
 
 	path, err := collector.makeFolder(agent.GetHost(), "info")
 	if err != nil {
 		return err
 	}
 
-	sout, _, err := agent.ExecuteCommand(command)
+	sout, _, err := agent.ExecuteCommand(command.String())
 	if err != nil {
 		// TODO Check if returned 124 status code
 		//return errors.New("Failed to execute '" + command + "' (" + err.Error() + ")")
@@ -332,15 +355,19 @@ func (collector *NodeCollector) collectDiscInfo(agent SSHCollectingAgent) error 
 
 	for _, command := range commands {
 		for _, dataPath := range collector.Settings.Cassandra.DataPath {
-			command := fmt.Sprintf("%s %s", command, dataPath)
+			var args = strings.Builder{}
+			if len(collector.Settings.Collecting.Info.CommandWrapper.Common) > 0 {
+				fmt.Fprintf(&args, "%s ", collector.Settings.Collecting.Info.CommandWrapper.Common)
+			}
+			fmt.Fprintf(&args, "%s %s", command, dataPath)
 
-			sout, _, err := agent.ExecuteCommand(command)
+			sout, _, err := agent.ExecuteCommand(args.String())
 			if err != nil {
-				collector.log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
+				collector.log.Error("Failed to execute '" + args.String() + "' (" + err.Error() + ")")
 				continue
 			}
 
-			report.WriteString(command)
+			report.WriteString(args.String())
 			report.WriteString(sout.String())
 			report.WriteString("\n")
 		}
@@ -366,16 +393,22 @@ func (collector *NodeCollector) collectSystemInfo(agent SSHCollectingAgent) erro
 	}
 
 	for _, command := range commands {
-		sout, _, err := agent.ExecuteCommand(command)
+		var args = strings.Builder{}
+		if len(collector.Settings.Collecting.Info.CommandWrapper.Common) > 0 {
+			fmt.Fprintf(&args, "%s ", collector.Settings.Collecting.Info.CommandWrapper.Common)
+		}
+		args.WriteString(command)
+
+		sout, _, err := agent.ExecuteCommand(args.String())
 		if err != nil {
-			collector.log.Error("Failed to execute '" + command + "' (" + err.Error() + ")")
+			collector.log.Error("Failed to execute '" + args.String() + "' (" + err.Error() + ")")
 			continue
 		}
 
 		fileName := strings.ReplaceAll(command, " ", "_") + ".info"
 		err = afero.WriteFile(collector.AppFs, filepath.Join(path, fileName), sout.Bytes(), os.ModePerm)
 		if err != nil {
-			collector.log.Error("Failed to save '" + command + "' data (" + err.Error() + ")")
+			collector.log.Error("Failed to save '" + args.String() + "' data (" + err.Error() + ")")
 			continue
 		}
 	}

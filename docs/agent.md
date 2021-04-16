@@ -50,6 +50,8 @@ node:
     gc-path:  "/var/log/cassandra"
     data-path:
       - "/var/lib/cassandra/data"
+    username: "JMX username"
+    password: "JMX password"
   collecting:
     configs:
       - "cassandra.yaml"
@@ -60,6 +62,10 @@ node:
       - "system.log"
     gc-log-patterns:
       - "gc*"
+    info:
+      command-wrapper:
+        common: "sudo"
+        nodetool: ""
 metrics:
   prometheus:
     port: 9090
@@ -82,6 +88,10 @@ target:
 * **node.cassandra.gc-path** - path for cassandra garbage collector log files
 * **node.collecting.gc-log-patterns** - list of patterns that will be used to select files from the garbage collector directory (See [Pattern](https://golang.org/pkg/path/filepath/#Match))
 * **node.cassandra.data-path** - List of directories where the DiscInfo test will be performed
+* **node.cassandra.username** - Remote JMX agent username (used by nodetool)
+* **node.cassandra.password** - Remote JMX agent password (used by nodetool)
+* **node.collecting.info.command-wrapper.common** - Command wrapper (prefix), which are called when collecting information about the environment (except nodetool)
+* **node.collecting.info.command-wrapper.nodetool** - Command wrapper (prefix), which are called when collecting information about the environment (**nodetool** only)
 
 ## Cassandra deployment requirements
 This collection agent depends on having a properly configured and running Prometheus metrics server running and collecting metrics from your Cassandra cluster in combination with the cassandra-exporter. For instructions on setting up cassandra-exporter with Cassandra, please see the [cassandra-exporter setup docs](https://github.com/instaclustr/cassandra-exporter#usage).
