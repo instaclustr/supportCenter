@@ -13,7 +13,10 @@ To agent supports the following command line flags:
 * `-p int` - Port to connect to on the remote host (default 22) via SSH
 * `-pk PATH` - List of files from which the identification keys (private key) for public key authentication are read, in addition to default one (Default [HOME]/.ssh/id_rsa)
 * `-config PATH` - The path to the configuration file
-* `generate-config PATH` - The path where the default settings file will be created
+* `-generate-config` - Generates the configuration file template in the default location  
+`... -generate-config /var/foo/bar.yaml` - Generates the configuration file template located at /var/foo/bar.yaml  
+`... -nc 1.2.3.4 -generate-config /var/foo/bar.yaml` - Generates the configuration file template located at /var/foo/bar.yaml, and pre-populates a node ip  
+**NOTE** _The location to the configuration file must be on the last command line argument_
 
 E.g. `./agent -disable_known_hosts -l ubuntu -mc 10.0.56.1 -nc 10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4 -pk ~/.ssh/id_rsa`
 

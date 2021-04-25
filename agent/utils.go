@@ -71,7 +71,8 @@ func printParameterUsage(parameter *flag.Flag) {
 }
 
 func parseAndValidateCommandLineArguments() {
-	if *user == "" {
+
+	if *user == "" && !*generateConfig {
 		flag.Usage()
 		os.Exit(1)
 	}
