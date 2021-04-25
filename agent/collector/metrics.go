@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -15,7 +16,10 @@ Constants
 const prometheusSnapshotSuccess = "success"
 const prometheusSnapshotFolder = "snapshots"
 const prometheusCreateSnapshotTemplate = "curl -s -XPOST http://localhost:%d/api/v1/admin/tsdb/snapshot"
-const temporalSnapshotTarballPath = "/tmp/InstaclustrCollection.tar"
+const temporalSnapshotTarballFolderPath = "/tmp"
+const temporalSnapshotTarballName = "InstaclustrCollection.tar"
+const temporalSnapshotTarballPath = temporalSnapshotTarballFolderPath + temporalSnapshotTarballName
+
 const createSnapshotTarballTemplate = "tar -cf %s -C %s ."
 const snapshotMetadataFileName = "meta.json"
 
@@ -92,7 +96,7 @@ func (collector *MetricsCollector) Collect(agent SSHCollectingAgent) error {
 
 	if collector.Settings.CopyCompressed {
 		log.Info("Creating snapshot tarball...")
-		tarballErr := collector.tarballSnapshot(agent, src, temporalSnapshotTarballPath)
+		tarballErr := collector.tarballSnapshot(agent, src, filepath.Join(temporalSnapshotTarballFolderPath, temporalSnapshotTarballName))
 		if tarballErr != nil {
 			log.Error(tarballErr)
 		} else {
@@ -111,7 +115,7 @@ func (collector *MetricsCollector) Collect(agent SSHCollectingAgent) error {
 			return tarballErr
 		}
 
-		src = temporalSnapshotTarballPath
+		src = filepath.Join(temporalSnapshotTarballFolderPath, temporalSnapshotTarballName)
 		resourceName = "snapshot tarball"
 	}
 
@@ -285,6 +289,74 @@ func (collector *MetricsCollector) removeResource(agent SSHCollectingAgent, path
 	err := agent.Remove(path)
 	if err != nil {
 		return errors.New("Failed to remove resource '" + path + "' (" + err.Error() + ")")
+	}
+
+	return nil
+}
+
+func (collector *MetricsCollector) Cleanup(agent SSHCollectingAgent) error {
+	log := collector.Logger.WithFields(logrus.Fields{
+		"prefix": "MC " + agent.GetHost(),
+	})
+	collector.log = log
+	log.Info("Metrics cleanup started")
+
+	err := agent.Connect()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	// Cleanup snapshots
+	err = collector.cleanupSnapshot(agent)
+	if err != nil {
+		log.Warn("Failed to cleanup snapshots (" + err.Error() + ")")
+	}
+
+	// Cleanup tarball
+	err = collector.cleanupTarball(agent)
+	if err != nil {
+		log.Warn("Failed to cleanup tarball (" + err.Error() + ")")
+	}
+
+	log.Info("Metrics cleanup completed")
+	return nil
+}
+
+func (collector *MetricsCollector) cleanupSnapshot(agent SSHCollectingAgent) error {
+	src := filepath.Join(collector.Settings.Prometheus.DataPath, prometheusSnapshotFolder)
+	entries, err := agent.ListDirectory(src)
+	if err != nil {
+		return errors.New("Failed to get list of prometheus snapshots (" + err.Error() + ")")
+	}
+
+	for _, entry := range entries {
+		if entry.IdDir {
+			collector.log.Info("Removing snapshot '" + entry.Path + "'")
+			err := agent.Remove(entry.Path)
+			if err != nil {
+				collector.log.Warn("Failed to remove snapshot '" + entry.Path + "' (" + err.Error() + ")")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (collector *MetricsCollector) cleanupTarball(agent SSHCollectingAgent) error {
+	entries, err := agent.ListDirectory(temporalSnapshotTarballFolderPath)
+	if err != nil {
+		return errors.New("Failed to get list of prometheus snapshots (" + err.Error() + ")")
+	}
+
+	for _, entry := range entries {
+		if !entry.IdDir && strings.HasSuffix(entry.Path, temporalSnapshotTarballName) {
+			collector.log.Info("Removing snapshot tarball '" + entry.Path + "'")
+			err = agent.Remove(entry.Path)
+			if err != nil {
+				return errors.New("Failed to remove temporal snapshot tarball '" + entry.Path + "' (" + err.Error() + ")")
+			}
+		}
 	}
 
 	return nil
