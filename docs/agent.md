@@ -14,6 +14,7 @@ To agent supports the following command line flags:
 * `-pk PATH` - List of files from which the identification keys (private key) for public key authentication are read, in addition to default one (Default [HOME]/.ssh/id_rsa)
 * `-config PATH` - The path to the configuration file
 * `generate-config PATH` - The path where the default settings file will be created
+* `-cleanup-metrics` - Cleanup files created by metrics collecting (_snapshots, temporal tarball_)
 
 E.g. `./agent -disable_known_hosts -l ubuntu -mc 10.0.56.1 -nc 10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4 -pk ~/.ssh/id_rsa`
 

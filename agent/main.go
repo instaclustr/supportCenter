@@ -32,6 +32,7 @@ var (
 	mcTimeRangeTo      = flag.String("mc-to", "", "Datetime (RFC3339 format, 2006-01-02T15:04:05Z07:00) to fetch metrics to some time point. (Default current datetime)")
 	configPath         = flag.String("config", "", "The path to the configuration file")
 	generateConfigPath = flag.String("generate-config", "", "The path where the default settings file will be created")
+	cleanupMetrics     = flag.Bool("cleanup-metrics", false, "Cleanup files created by metrics collecting")
 
 	mcTargets   StringList
 	ncTargets   StringList
@@ -122,6 +123,32 @@ func main() {
 
 	collectingRootFolder := Expand(settings.Agent.CollectedDataPath)
 
+	// Cleanup
+	if *cleanupMetrics {
+		metricsTargets := JoinToSet(settings.Target.Metrics, mcTargets.items)
+		if len(metricsTargets) >= 1 {
+			host := metricsTargets[0]
+
+			log.Info("Metrics cleanup hosts is: ", host)
+
+			metricsCollector := collector.MetricsCollector{
+				Settings: &settings.Metrics,
+				Logger:   log,
+			}
+
+			sshAgent := &collector.SSHAgent{}
+			sshAgent.SetTarget(host, *port)
+			sshAgent.SetConfig(sshConfig)
+
+			err := metricsCollector.Cleanup(sshAgent)
+			if err != nil {
+				log.Error("Failed to cleanup metrics on '" + host + "'")
+			}
+		}
+
+		return
+	}
+
 	// Collecting
 	collectingPath := filepath.Join(collectingRootFolder, collectingTimestamp)
 	if os.MkdirAll(collectingPath, os.ModePerm) != nil {
@@ -151,7 +178,7 @@ func main() {
 	if len(metricsTargets) > 1 {
 		metricsTargets = metricsTargets[:1]
 	}
-	log.Info("Metrics collecting hosts are: ", metricsTargets)
+	log.Info("Metrics collecting hosts is: ", metricsTargets)
 	log.Info("Metrics collecting time span: ", mcTimestampFrom.UTC(), " ... ", mcTimestampTo.UTC())
 	log.Info("Node collecting hosts are: ", nodeTargets)
 
